@@ -1,0 +1,599 @@
+Харківський національний університет радіоелектроніки
+Факультет комп'ютерних наук
+Кафедра програмної інженерії
+
+
+
+
+ЗВІТ
+до практичного заняття №2 з дисципліни
+«Аналіз та рефакторинг коду»
+на тему: «Методи рефакторингу коду програмного забезпечення»
+
+
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Проценко Артем Романович
+
+Перевірив
+ст. викладач кафедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+
+
+Харків 2024
+1 МЕТА
+
+Навчитись основним методам рефакторингу коду на основі реальних прикладів з їхніх власних програмних проєктів, навчитися ідентифікувати проблеми в коді та використовувати відповідні методи рефакторингу для покращення його якості.
+
+2 ВСТУП
+
+Рефакторинг — це процес покращення внутрішньої структури коду без зміни його зовнішньої поведінки. Основна мета рефакторингу полягає в підвищенні читабельності, спрощенні підтримки та підготовці коду до майбутніх змін. Рефакторинг дозволяє усунути технічний борг, зробити код зрозумілішим і ефективнішим, а також зменшити ймовірність виникнення помилок у майбутньому.
+У сучасному програмному забезпеченні якість коду відіграє ключову роль, адже саме від неї залежить його стабільність, продуктивність і масштабованість. З часом код бази може ускладнюватися через додавання нових функцій або недостатню увагу до стандартів розробки. Це робить рефакторинг необхідною практикою для підтримки високого рівня якості.
+Метою цієї роботи є навчання основним методам рефакторингу на основі реальних прикладів. Це дозволить закріпити знання з аналізу коду, виявлення потенційних проблем та вибору найкращих підходів до їх усунення. Освоєння цих методів сприяє розвитку практичних навичок у роботі з власними проєктами та забезпечує більш ефективний процес розробки програмного забезпечення.
+
+3 ХІД РОБОТИ
+
+Відео пояснення методів рефакторингу наведено у додатку А
+3.1 Метод рефакторингу «Виділення класів»
+
+	Програмний код класу до використання методу рефакторинга «Виділення класів» наведено у додатку Б на рядках 3-72. 
+
+3.1.1 Опис коду до рефакторингу
+
+Код реалізує сервіс TokenService, який відповідає за роботу з токенами доступу та оновлення, а також їх перевірку. Усі функції, пов’язані із генерацією, підписом і перевіркою токенів, зосереджені в одному класі. Логіка створення токенів базується на використанні налаштувань опцій jwt токена, які визначають секретні ключі та термін дії токенів.
+Методи класу забезпечують генерацію токенів із додаванням клеймів, які містять інформацію про користувача такі як ідентифікатор користувача та  електрона пошта. Також є метод для перевірки валідності токена, що використовує налаштування параметрів перевірки.
+
+3.1.2 Опис причин застосування рефакторинга
+
+Код до рефакторингу має низку проблем, пов’язаних із його структурою та організацією, що ускладнюють підтримку, тестування та розширення функціональності. Основною проблемою є порушення принципу єдиної відповідальності. Клас TokenService виконує кілька завдань: генерацію токенів, їх підписування та перевірку валідності. Така концентрація різнорідної логіки в одному класі створює надмірну складність і знижує модульність.
+Через щільний зв’язок між конфігурацією (JwtOptions) та логікою класу виникає складність у тестуванні. Для перевірки окремих компонентів потрібно враховувати всі залежності класу, що знижує ефективність модульного тестування.
+У результаті, структура коду створює технічний борг і ризик помилок під час внесення змін.
+
+3.1.3 Обґрунтування вибору методу рефакторинга
+
+Метод рефакторингу "Виділення класу" було обрано для покращення структури та якості коду, оскільки він дозволяє розділити логіку на окремі компоненти з чітко визначеними відповідальностями.
+Таке розділення також полегшує тестування, оскільки окремі класи зі зрозумілою відповідальністю простіше перевіряти за допомогою модульних тестів, що підвищує надійність системи та знижує ризик помилок. Крім того, цей підхід забезпечує масштабованість, оскільки зміни в алгоритмах підписування токенів чи форматах клеймів будуть локалізовані в одному місці і не впливатимуть на інші частини коду.
+Таким чином, вибір методу "Виділення класу" обґрунтований необхідністю покращення структури коду, забезпечення його модульності, читабельності та відповідності принципам чистої архітектури.
+
+3.1.4 Аналіз коду після застосування методу рефакторингу
+
+Програмний код класу до використання методу рефакторинга «Виділення класів» наведено у додатку Б на рядках 76-151.
+Після застосування методу рефакторингу "Виділення класу", структура коду значно покращилася завдяки розділенню логіки на два окремі класи: TokenService та JwtProvider. Кожен клас тепер виконує свою окрему роль, що відповідає принципу єдиної відповідальності, що робить код легшим для розуміння та підтримки.
+Клас TokenService тепер відповідає лише за взаємодію з зовнішніми сервісами через інтерфейс IJwtProvider. Його єдиним завданням є виклик методів для створення токенів. Це робить цей клас легким для тестування і підтримки. Клас JwtProvider, в свою чергу, відповідає за реальну генерацію токенів (як для доступу, так і для оновлення), а також за перевірку токенів через метод GetPrincipals. Всі операції, пов'язані з роботою з JWT, тепер сконцентровані в одному класі.
+Завдяки такій структурі, код став більш модульним, що дозволяє кожному класу мати чітко визначену відповідальність. Це спрощує масштабування, адже зміни в механізмі генерації токенів або їх валідації можна внести без впливу на інші частини системи. Наприклад, якщо змінюється алгоритм генерації токенів або спосіб їх перевірки, це можна зробити лише в класі JwtProvider, не зачіпаючи логіку в класі TokenService.
+Крім того, завдяки чітко визначеним обов'язкам класів, тестування кожного компонента стало простішим. Логіку генерації токенів тепер можна тестувати окремо в класі JwtProvider, а взаємодію з іншими сервісами — в класі TokenService. Такий підхід дозволяє значно полегшити процес тестування та забезпечує більшу гнучкість у внесенні змін у код.
+Зрозумілість і підтримуваність коду також значно покращилися. Раніше клас TokenService був перевантажений різними аспектами логіки, що ускладнювало його розуміння і супроводження. Тепер, коли кожен клас відповідає за свою конкретну функцію, код став легшим для розуміння і підтримки.
+
+3.2 Метод рефакторингу «Заміна вкладених умовних конструкцій на запобіжні блоки»
+
+Програмний код класу до використання методу рефакторинга «Заміна вкладених умовних конструкцій на запобіжні блоки» наведено у додатку В на рядках 3-31
+ 
+3.2.1 Опис коду до рефакторингу
+
+Метод Login виконує логіку аутентифікації користувача за допомогою електронної пошти користувача  та пароля. Спочатку перевіряється наявність користувача в базі даних за вказаною електронною поштою через виклик репозиторію. Якщо користувач знайдений, далі перевіряється правильність введеного пароля. Якщо пароль правильний, генеруються токени доступу та оновлення через токен сервіс, і ці токени повертаються в результаті методу. Якщо ж пароль неправильний або користувач не знайдений, викидаються відповідні виключення з повідомленням про помилку та відповідним HTTP-кодом.
+
+3.2.2 Опис причин застосування рефакторинга
+
+До рефакторингу код має вкладену структуру умовних конструкцій, що робить його важким для читання та розуміння. У даному випадку, перевірка наявності користувача та вірності пароля здійснюється через кілька рівнів умовних блоків. Це створює "гніздо" умов, де кожен наступний рівень умовної перевірки залежить від успіху попереднього, що ускладнює сприйняття логіки виконання та збільшує ймовірність помилок.
+
+3.2.3 Обґрунтування вибору методу рефакторинга
+
+Вибір методу рефакторингу "Заміна вкладених умовних конструкцій на запобіжні блоки" обґрунтовано необхідністю покращення читабельності та спрощення логіки коду. Вкладені умовні конструкції, особливо у випадках, де кілька перевірок виконуються одна за одною, можуть ускладнювати розуміння алгоритму та знижувати якість коду. У цьому випадку, метод "Заміна вкладених умовних конструкцій на запобіжні блоки" дозволяє змінити структуру умовних перевірок, роблячи код більш лінійним і чітким. Замість того, щоб мати серію умов, які виконуються лише при задоволенні попередньої умови, кожен "запобіжний блок" дозволяє швидко вийти з методу або функції при невиконанні умови, таким чином зменшуючи глибину вкладеності і знижуючи ймовірність помилок.
+Такий підхід має кілька переваг: покращена читабельність, оскільки код стає лінійним і кожна перевірка має чітке і зрозуміле значення; зменшення складності, оскільки замість багатьох вкладених умов, ми маємо прості блоки, що виключають подальшу обробку, якщо умова не виконана; зниження ймовірності помилок, оскільки запобіжні блоки зменшують кількість можливих точок зламу в коді; покращення підтримки коду, оскільки зміни та доповнення до коду стають простішими, оскільки кожна перевірка незалежна від інших.
+Застосування цього методу рефакторингу є найкращим вибором для спрощення структури коду, що дозволяє зробити його більш елегантним та легким для підтримки.
+
+3.2.4 Аналіз коду після застосування методу рефакторингу
+
+Програмний код класу після використання методу рефакторинга «Заміна вкладених умовних конструкцій на запобіжні блоки» наведено у додатку В на рядках 35-56
+Після застосування методу рефакторингу "Заміна вкладених умовних конструкцій на запобіжні блоки" код став значно лінійнішим і простішим для розуміння. Раніше, коли всі перевірки були вкладені одна в одну, логіка виконання була складною для сприйняття. Тепер кожна умова виконується в окремому блоці, що зменшує вкладеність і покращує структуру коду. Така зміна зробила код більш чітким та легким для читання, оскільки кожен етап перевірки окремо пояснюється: спочатку перевіряється наявність користувача, потім правильність пароля, і лише після цього генеруються токени.
+Заміна вкладених умов на запобіжні блоки також знижує ймовірність помилок, адже тепер при невиконанні будь-якої умови метод завершиться на відповідній перевірці, не переходячи до наступних кроків[1]. Це дозволяє уникнути зайвих помилок, таких як спроба генерувати токени, якщо користувач не знайдений або пароль невірний.
+Такий підхід робить код зрозумілішим і полегшує його підтримку, оскільки кожна перевірка чітко розділена і незалежна. Крім того, зміни або доповнення до коду можна вносити без необхідності розбиратися в складній логіці, що значно спрощує подальші модифікації та тестування.
+В результаті рефакторингу код став більш організованим, зручним для роботи, а також легшим для тестування та внесення змін, що підвищує загальну якість і надійність системи.
+
+3.3 Метод рефакторингу «Стиснення ієрархії»
+
+Програмний код класу до використання методу рефакторинга «Стиснення ієрархії» наведено у додатку Г на рядках 3-98
+
+3.3.1 Опис Коду до рефакторингу
+
+Код складається з двох класів: BaseStorageService та StorageService. Клас BaseStorageService визначає три захищені поля: _s3Client, _options та _logger, які відповідають за роботу з Amazon S3, налаштуваннями AWS і логуванням. У ньому також є два методи: BuildFileKey, що генерує ключ файлу для завантаження, комбінуючи ідентифікатор користувача, поточний час і ім'я файлу, та GetFileUrl, який формує URL для доступу до файлу на S3, використовуючи його ключ.
+Клас StorageService наслідує від BaseStorageService і реалізує інтерфейс IStorageService. Він містить два основні методи: UploadFileAsync для завантаження файлів на S3 за допомогою клієнта _s3Client і отримання URL файлу після успішного завантаження, а також DeleteFileAsync для видалення файлів з S3. Під час видалення перевіряється статус HTTP відповіді, і у разі успіху виконується логування, а у разі помилки кидається виняток.
+Класи разом забезпечують функціональність для роботи з файлами в хмарному сховищі, виконуючи операції завантаження та видалення файлів, а також обробку помилок, що можуть виникнути під час цих операцій.
+
+3.3.2 Опис причин застосування рефакторинга
+
+Причини застосування рефакторингу в цьому коді обумовлені необхідністю покращення його структури, гнучкості, читабельності та підтримуваності в довгостроковій перспективі. Однією з основних причин є покращення підтримуваності та масштабованості коду. Обидва класи (BaseStorageService і StorageService) виконують схожі операції, що може призвести до дублювання коду, особливо коли потрібно додавати нові функціональності.
+Рефакторинг також полегшує внесення змін у майбутньому. Коли логіка, що повторюється, винесена в окремі методи чи класи, це значно спрощує оновлення коду в майбутньому. Наприклад, якщо потрібно змінити механізм генерації ключа файлу або формування URL, достатньо буде оновити лише базовий клас, а не всі класи, що його наслідують.
+
+
+3.3.3 Обґрунтування вибору методу рефакторинга
+
+Метод рефакторингу "Стиснення ієрархії" обирається для спрощення структури коду, зменшуючи кількість рівнів наслідування в ієрархії класів, що часто ускладнює підтримку, розширення та тестування системи.
+Основною причиною застосування цього методу є зменшення складності коду, особливо коли наявна багаторівнева ієрархія класів, яка не додає істотної специфічної логіки. В такому випадку класи можна об'єднати або зменшити кількість рівнів наслідування, що дозволяє отримати більш плоску і зрозумілу структуру. Це сприяє кращій зрозумілості проекту, зокрема для нових розробників, і дозволяє значно полегшити модифікацію коду.
+
+3.3.4 Аналіз коду після застосування методу рефакторингу
+
+Програмний код класу після використання методу рефакторинга «Стиснення ієрархії» наведено у додатку Г на рядках 102-188
+Після застосування методу рефакторингу "Стиснення ієрархії" в класі StorageService, структура коду була значно спрощена, зменшивши кількість зайвих абстракцій та рівнів наслідування. Це дозволило знизити складність коду та покращити його підтримуваність.
+Клас став простішим для читання завдяки зменшенню кількості рівнів ієрархії. Це також зробило тестування цього класу більш прямолінійним, оскільки всі методи зосереджені на конкретних задачах. Це робить їх окремі частини легкими для тестування без необхідності створювати численні допоміжні класи або абстракції.
+Загалом, після застосування методу "Стиснення ієрархії" код став більш компактним, чистим і зручним для подальшої підтримки. Це сприяє кращій організації та зрозумілості проекту, особливо при інтеграції з зовнішніми системами, як-от AWS S3.
+
+Слайди з презентації, які ілюструють виконання даної практичної роботи наведено у додатку Д.
+ 
+ВИСНОВКИ
+
+Рефакторинг є критично важливим процесом для підтримки якості коду на високому рівні. Він забезпечує читабельність коду, що спрощує роботу над проєктом для команди, зменшує технічний борг і дозволяє уникати накопичення проблем у майбутньому. Рефакторинг підвищує продуктивність розробників завдяки зниженню складності коду, покращує надійність і масштабованість програмного забезпечення, а також полегшує пошук і виправлення багів, знижуючи ризик помилок у складних системах.
+Методи рефакторингу потрібно застосовувати вчасно і правильно. Це доцільно робити на ранніх етапах розробки, щоб усунути проблеми до їх накопичення. Рефакторинг слід виконувати після успішного тестування функціональності, оскільки він не повинен змінювати поведінку системи. Крім того, рефакторинг корисний у процесі додавання нових функцій, оскільки спрощує інтеграцію змін. При виявленні ознак поганого коду, таких як дублікатність, надмірна складність або сильна залежність між модулями, також варто застосувати відповідні методи рефакторингу.
+ 
+СПИСОК ВИКОРИСТАННИХ ДЖЕРЕЛ
+
+1. Фаулер М. Refactoring: Improving the Design of Existing Code. Addison-Wesley Professional, 1999. (дата звернення 29.11.2024)
+ 
+ДОДАТОК А
+Відео-посилання на YouTube
+
+https://youtu.be/XdIUFI4VnXc
+ 
+ДОДАТОК Б
+Код до та після застосування методу рефакторингу «Виділення класів»
+
+   1: //Код до рефакторингу:
+   2:
+   3: public class TokenService(IOptions<JwtOptions> options) : ITokenService
+   4: {
+   5:     private readonly JwtOptions _options = options.Value;
+   6:
+   7:     public Task<Tuple<string, string>> GenerateTokens(User user)
+   8:     {
+   9:         var accessToken = GenerateAccessToken(user);
+  10:         var refreshToken = GenerateRefreshToken(user);
+  11:
+  12:         return Task.FromResult(Tuple.Create(accessToken, refreshToken));
+  13:     }
+  14:
+  15:     private string GenerateAccessToken(User user)
+  16:     {
+  17:         var claims = new[]
+  18:         {
+  19:             new Claim("UserId", user.UserId.ToString()),
+  20:             new Claim("type", "access"),
+  21:             new Claim("Email", user.Email),
+  22:         };
+  23:
+  24:         var signingCredentials = new SigningCredentials(
+  25:             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.AccessSecretKey)),
+  26:             SecurityAlgorithms.HmacSha256);
+  27:
+  28:         var accessToken = new JwtSecurityToken(
+  29:             claims: claims,
+  30:             signingCredentials: signingCredentials,
+  31:             expires: DateTime.Now.AddHours(_options.AccessExpiresDuration));
+  32:
+  33:         return new JwtSecurityTokenHandler().WriteToken(accessToken);
+  34:     }
+  35:
+  36:     private string GenerateRefreshToken(User user)
+  37:     {
+  38:         var claims = new[]
+  39:         {
+  40:             new Claim("UserId", user.UserId.ToString()),
+  41:             new Claim("type", "refresh"),
+  42:             new Claim("Email", user.Email),
+  43:         };
+  44:
+  45:         var signingCredentials = new SigningCredentials(
+  46:             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.RefreshSecretKey)),
+  47:             SecurityAlgorithms.HmacSha256);
+  48:
+  49:         var refreshToken = new JwtSecurityToken(
+  50:             claims: claims,
+  51:             signingCredentials: signingCredentials,
+  52:             expires: DateTime.Now.AddDays(_options.RefreshExpiresDuration));
+  53:
+  54:         return new JwtSecurityTokenHandler().WriteToken(refreshToken);
+  55:     }
+  56:
+  57:     public ClaimsPrincipal GetPrincipals(string refreshToken)
+  58:     {
+  59:         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.RefreshSecretKey));
+  60:
+  61:         var validation = new TokenValidationParameters
+  62:         {
+  63:             IssuerSigningKey = securityKey,
+  64:             ValidateIssuer = false,
+  65:             ValidateAudience = false,
+  66:             ValidateLifetime = false,
+  67:             ValidateIssuerSigningKey = true
+  68:         };
+  69:
+  70:         return new JwtSecurityTokenHandler().ValidateToken(refreshToken, validation, out _);
+  71:     }
+  72: }
+  73:
+  74: //Код після рефакторингу:
+  75:
+  76: public class TokenService(IJwtProvider jwtProvider) : ITokenService
+  77: {
+  78:    public Task<Tuple<string,string>> GenerateTokens(User user)
+  79:    {
+  80:       var accessToken = jwtProvider.GenerateAccessToken(user);
+  81:       var refreshToken = jwtProvider.GenerateRefreshToken(user);
+  82:
+  83:       return Task.FromResult(Tuple.Create(accessToken, refreshToken));
+  84:    }
+  85:
+  86: }
+  87:
+  88: public class JwtProvider(IOptions<JwtOptions> options) : IJwtProvider
+  89: {
+  90:    private readonly JwtOptions _options = options.Value;
+  91:
+  92:    public string GenerateAccessToken(User user)
+  93:    {
+  94:       var claims = new[]
+  95:       {
+  96:          new Claim("UserId", user.UserId.ToString()),
+  97:          new Claim("type", "access"),
+  98:          new Claim("Email", user.Email),
+  99:
+ 100:       };
+ 101:       var signingCredentials = new SigningCredentials(
+ 102:          new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.AccessSecretKey)),
+ 103:          SecurityAlgorithms.HmacSha256);
+ 104:
+ 105:       var accessToken = new JwtSecurityToken(
+ 106:          claims: claims,
+ 107:          signingCredentials: signingCredentials,
+ 108:          expires: DateTime.Now.AddHours(_options.AccessExpiresDuration));
+ 109:
+ 110:       var tokenValue = new JwtSecurityTokenHandler().WriteToken(accessToken);
+ 111:
+ 112:       return tokenValue;
+ 113:    }
+ 114:
+ 115:    public string GenerateRefreshToken(User user)
+ 116:    {
+ 117:       var claims = new[]
+ 118:       {
+ 119:          new Claim("UserId", user.UserId.ToString()),
+ 120:          new Claim("type", "refresh"),
+ 121:          new Claim("Email", user.Email),
+ 122:       };
+ 123:
+ 124:       var signingCredentials = new SigningCredentials(
+ 125:          new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.RefreshSecretKey)),
+ 126:          SecurityAlgorithms.HmacSha256);
+ 127:
+ 128:       var refreshToken = new JwtSecurityToken(
+ 129:          claims: claims,
+ 130:          signingCredentials: signingCredentials,
+ 131:          expires: DateTime.Now.AddDays(_options.RefreshExpiresDuration));
+ 132:
+ 133:       return new JwtSecurityTokenHandler().WriteToken(refreshToken);
+ 134:    }
+ 135:
+ 136:    public ClaimsPrincipal GetPrincipals(string refreshToken)
+ 137:    {
+ 138:       var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.RefreshSecretKey));
+ 139:
+ 140:       var validation = new TokenValidationParameters
+ 141:       {
+ 142:          IssuerSigningKey = securityKey,
+ 143:          ValidateIssuer = false,
+ 144:          ValidateAudience = false,
+ 145:          ValidateLifetime = false,
+ 146:          ValidateIssuerSigningKey = true
+ 147:       };
+ 148:
+ 149:       return new JwtSecurityTokenHandler().ValidateToken(refreshToken, validation, out _);
+ 150:    }
+ 151: }
+ 
+ДОДАТОК В
+Код до та після використання застосування методу рефакторінга «Заміна вкладених умовних конструкцій на запобіжні блоки»
+
+   1: //Код до рефакторингу
+   2:
+   3: public async Task<LoginUserResponse> Login(string email, string password)
+   4: {
+   5:     var loginUserResult = new LoginUserResponse();
+   6:
+   7:     var candidate = await _userRepository.GetByEmail(email);
+   8:
+   9:     if (candidate != null)
+  10:     {
+  11:         var passwordVerifyResult = _passwordHasher.Verify(password, candidate.Password);
+  12:
+  13:         if (passwordVerifyResult)
+  14:         {
+  15:             var (accessToken, refreshToken) = await _tokenService.GenerateTokens(candidate);
+  16:
+  17:             loginUserResult.AccessToken = accessToken;
+  18:             loginUserResult.RefreshToken = refreshToken;
+  19:
+  20:             return loginUserResult;
+  21:         }
+  22:         else
+  23:         {
+  24:             throw new ApiException("Incorrect password", 400);
+  25:         }
+  26:     }
+  27:     else
+  28:     {
+  29:         throw new ApiException($"User with email {email} wasn't found", 404);
+  30:     }
+  31: }
+  32:
+  33: // Код після рефакторингу
+  34:
+  35: public async Task<LoginUserResponse> Login(string email, string password)
+  36: {
+  37:     var loginUserResult = new LoginUserResponse();
+  38:
+  39:     var candidate = await _userRepository.GetByEmail(email);
+  40:     if (candidate == null)
+  41:     {
+  42:         throw new ApiException($"User with email {email} wasn't found", 404);
+  43:     }
+  44:
+  45:     var passwordVerifyResult = _passwordHasher.Verify(password, candidate.Password);
+  46:     if (!passwordVerifyResult)
+  47:     {
+  48:         throw new ApiException("Incorrect password", 400);
+  49:     }
+  50:
+  51:     var (accessToken, refreshToken) = await _tokenService.GenerateTokens(candidate);
+  52:     loginUserResult.AccessToken = accessToken;
+  53:     loginUserResult.RefreshToken = refreshToken;
+  54:
+  55:     return loginUserResult;}
+  
+ДОДАТОК Г
+Код до та після застосування методу рефакторінгу «Стиснення ієрархії»
+
+   1: // Код до рефакторингу
+   2:
+   3: public class BaseStorageService
+   4: {
+   5:     protected readonly IAmazonS3 _s3Client;
+   6:     protected readonly AwsOptions _options;
+   7:     protected readonly ILogger _logger;
+   8:
+   9:     public BaseStorageService(IAmazonS3 s3Client, IOptions<AwsOptions> options, ILogger logger)
+  10:     {
+  11:         _s3Client = s3Client;
+  12:         _options = options.Value;
+  13:         _logger = logger;
+  14:     }
+  15:
+  16:     protected string BuildFileKey(string id, string key)
+  17:     {
+  18:         return $"user_icons/{id}/{DateTime.Now:HH:mm:ss}{key}";
+  19:     }
+  20:
+  21:     protected string GetFileUrl(string key)
+  22:     {
+  23:         return $"https://mydevhubimagebucket.s3.eu-west-3.amazonaws.com/{key}";
+  24:     }
+  25: }
+  26:
+  27: public class StorageService : BaseStorageService, IStorageService
+  28: {
+  29:     public StorageService(IAmazonS3 s3Client, IOptions<AwsOptions> options, ILogger<StorageService> logger)
+  30:         : base(s3Client, options, logger)
+  31:     { }
+  32:
+  33:     public async Task<string> UploadFileAsync(string id, string key, Stream fileStream, string contentType)
+  34:     {
+  35:         var request = new PutObjectRequest
+  36:         {
+  37:             BucketName = _options.BucketName,
+  38:             Key = BuildFileKey(id, key),
+  39:             InputStream = fileStream,
+  40:             ContentType = contentType
+  41:         };
+  42:
+  43:         try
+  44:         {
+  45:             var response = await _s3Client.PutObjectAsync(request);
+  46:
+  47:             if (response.HttpStatusCode == HttpStatusCode.OK)
+  48:             {
+  49:                 return GetFileUrl(request.Key);
+  50:             }
+  51:
+  52:             throw new Exception("File upload failed");
+  53:         }
+  54:         catch (AmazonS3Exception e)
+  55:         {
+  56:             throw new AmazonS3Exception($"500: {e.Message}");
+  57:         }
+  58:         catch (Exception e)
+  59:         {
+  60:             throw new Exception($"500:{e.Message}");
+  61:         }
+  62:     }
+  63:
+  64:     public async Task DeleteFileAsync(string avatarPath)
+  65:     {
+  66:         var uri = new Uri(avatarPath);
+  67:         var key = uri.AbsolutePath.TrimStart('/');
+  68:
+  69:         var request = new DeleteObjectRequest
+  70:         {
+  71:             BucketName = _options.BucketName,
+  72:             Key = key,
+  73:         };
+  74:
+  75:         try
+  76:         {
+  77:             var response = await _s3Client.DeleteObjectAsync(request);
+  78:
+  79:             if (response.HttpStatusCode == HttpStatusCode.NoContent)
+  80:             {
+  81:                 _logger.LogInformation($"User icon with {avatarPath} path successfully deleted");
+  82:                 return;
+  83:             }
+  84:             else
+  85:             {
+  86:                 throw new Exception($"{response.HttpStatusCode}: Failed to delete file {avatarPath}.");
+  87:             }
+  88:         }
+  89:         catch (AmazonS3Exception e)
+  90:         {
+  91:             throw new AmazonS3Exception($"500: {e.Message}");
+  92:         }
+  93:         catch (Exception e)
+  94:         {
+  95:             throw new Exception($"500:{e.Message}");
+  96:         }
+  97:     }
+  98: }
+  99:
+ 100: // Код після рефакторингу
+ 101:
+ 102: public class StorageService : IStorageService
+ 103: {
+ 104:     private readonly IAmazonS3 _s3Client;
+ 105:     private readonly AwsOptions _options;
+ 106:     private readonly ILogger<StorageService> _logger;
+ 107:
+ 108:     public StorageService(IAmazonS3 s3Client, IOptions<AwsOptions> options, ILogger<StorageService> logger)
+ 109:     {
+ 110:         _s3Client = s3Client;
+ 111:         _logger = logger;
+ 112:         _options = options.Value;
+ 113:     }
+ 114:
+ 115:     private string BuildFileKey(string id, string key)
+ 116:     {
+ 117:         return $"user_icons/{id}/{DateTime.Now:HH:mm:ss}{key}";
+ 118:     }
+ 119:
+ 120:     private string GetFileUrl(string key)
+ 121:     {
+ 122:         return $"https://mydevhubimagebucket.s3.eu-west-3.amazonaws.com/{key}";
+ 123:     }
+ 124:
+ 125:     public async Task<string> UploadFileAsync(string id, string key, Stream fileStream, string contentType)
+ 126:     {
+ 127:         var request = new PutObjectRequest
+ 128:         {
+ 129:             BucketName = _options.BucketName,
+ 130:             Key = BuildFileKey(id, key),
+ 131:             InputStream = fileStream,
+ 132:             ContentType = contentType
+ 133:         };
+ 134:
+ 135:         try
+ 136:         {
+ 137:             var response = await _s3Client.PutObjectAsync(request);
+ 138:
+ 139:             if (response.HttpStatusCode == HttpStatusCode.OK)
+ 140:             {
+ 141:                 return GetFileUrl(request.Key);
+ 142:             }
+ 143:
+ 144:             throw new Exception("File upload failed");
+ 145:         }
+ 146:         catch (AmazonS3Exception e)
+ 147:         {
+ 148:             throw new AmazonS3Exception($"500: {e.Message}");
+ 149:         }
+ 150:         catch (Exception e)
+ 151:         {
+ 152:             throw new Exception($"500:{e.Message}");
+ 153:         }
+ 154:     }
+ 155:
+ 156:     public async Task DeleteFileAsync(string avatarPath)
+ 157:     {
+ 158:         var uri = new Uri(avatarPath);
+ 159:         var key = uri.AbsolutePath.TrimStart('/');
+ 160:
+ 161:         var request = new DeleteObjectRequest
+ 162:         {
+ 163:             BucketName = _options.BucketName,
+ 164:             Key = key,
+ 165:         };
+ 166:
+ 167:         try
+ 168:         {
+ 169:             var response = await _s3Client.DeleteObjectAsync(request);
+ 170:
+ 171:             if (response.HttpStatusCode == HttpStatusCode.NoContent)
+ 172:             {
+ 173:                 _logger.LogInformation($"User icon with {avatarPath} path successfully deleted");
+ 174:                 return;
+ 175:             }
+ 176:
+ 177:             throw new Exception($"{response.HttpStatusCode}: Failed to delete file {avatarPath}.");
+ 178:         }
+ 179:         catch (AmazonS3Exception e)
+ 180:         {
+ 181:             throw new AmazonS3Exception($"500: {e.Message}");
+ 182:         }
+ 183:         catch (Exception e)
+ 184:         {
+ 185:             throw new Exception($"500:{e.Message}");
+ 186:         }
+ 187:     }
+ 188: }
+ 
+ДОДАТОК Д
+Скріншоти презентації
+
+ 
+Рисунок Д.1 – Титульний слайд
+
+ 
+Рисунок Д.2 – Зміст доповіді
+
+ 
+Рисунок Д.3 – Вступ. Опис поняття рефакторингу
+
+ 
+Рисунок Д.4 –Опис першого методу рефакторингу
+
+ 
+Рисунок Д.5 – Приклад коду до використання першого методу рефакторингу
+
+ 
+Рисунок Д.6 – Приклад коду після використання першого методу рефакторингу
+
+ 
+Рисунок Д.7 – Опис другого методу рефакторингу
+
+ 
+Рисунок Д.8 – Приклад коду до використання другого методу рефакторингу
+
+ 
+Рисунок Д.9 – Приклад коду після використання другого методу рефакторингу
+
+ 
+Рисунок Д.10 – Опис третього методу рефакторингу
+
+ 
+Рисунок Д.11 – Приклад коду до використання третього методу рефакторингу
+
+ 
+Рисунок Д.12 – Приклад коду до використання третього методу рефакторингу. Продовження
+
+ 
+Рисунок Д.13 – Приклад коду після використання третього методу рефакторингу
+
+ 
+Рисунок Д.14 – Опис інструментів для рефакторингу коду
+
+ 
+Рисунок Д.15 – Висновки щодо використання рефакторинга коду
+
+ 
+Рисунок Д.16 – Список використаної літератури
