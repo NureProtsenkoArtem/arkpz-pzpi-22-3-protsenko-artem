@@ -1,0 +1,1202 @@
+Харківський національний університет радіоелектроніки
+Факультет комп'ютерних наук
+Кафедра програмної інженерії
+
+
+
+
+ЗВІТ
+до лабораторної роботи №2 з дисципліни
+«Аналіз та рефакторинг коду»
+на тему: «РОЗРОБКА БАЗИ ДАНИХ ДЛЯ
+СЕРВЕРНОЇ ЧАСТИНИ ПРОГРАМНОЇ СИСТЕМИ ТА ПРИКЛАДНОГО ПРОГРАМНОГО ІНТЕРФЕЙСУ»
+
+
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Проценко Артем Романович
+
+Перевірив
+ст. викладач кафедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+Харків 2024
+1 МЕТА
+
+Розробити базу даних для серверної частини та прикладного програмного інтерфейсу для програмної системи для автоматизації годування домашніх тварин.
+
+2 ХІД РОБОТИ
+
+При розробці серверної частини програмної системи для автоматизації годування домашніх тварин було прийнято низку інженерних рішень, що спрямовані на забезпечення масштабованості, продуктивності та надійності програмного продукту. Для побудови архітектури системи було використано підхід чистої архітектури, що забезпечує модульність, спрощує підтримку та тестування коду, а також дозволяє гнучко змінювати окремі компоненти без впливу на всю систему.
+Для ефективного зберігання та обробки даних було створено кілька діаграм, зокрема діаграму прецедентів для опису взаємодії користувачів із системою. Діаграма прецедентів наведено у додатку А. ER-діаграма, яка відображає основні сутності та їх взаємозв’язки. ER-діаграма наведено у додатку Б. Також діаграму структури бази даних, яка деталізує таблиці, ключі, зв’язки між ними та обмеження. Діаграма структури бази даних наведено у додатку В
+Для забезпечення безпеки доступу до системи було реалізовано авторизацію за допомогою JWT Цей механізм дозволяє генерувати захищені токени доступу, які використовуються для автентифікації та авторизації користувачів у системі.
+Серверна частина системи була розроблена на мові програмування C# з використанням ASP.NET Web API, що забезпечує легке створення RESTful API для взаємодії клієнтської частини із сервером. Для роботи з базою даних використовувалася ORM Entity Framework, яка спрощує виконання операцій із даними та забезпечує автоматичне відображення об'єктів у таблиці бази даних. Фрагменти коду логіки взаємодії з базою даних та взаємодії серверної частини з клієнтом наведено у додатку Г.
+Як основну базу даних було обрано PostgreSQL, яка є надійною реляційною системою управління базами даних. PostgreSQL забезпечує масштабованість, високу продуктивність при роботі з великими обсягами даних і підтримку складних запитів.
+Також у межах проєкту була розроблена специфікація API, яка описує всі доступні програмні інтерфейси серверної частини, включаючи їхні методи, параметри запитів, структуру вхідних і вихідних даних, а також можливі статуси відповідей. Ця специфікація дозволяє іншим розробникам легко інтегрувати клієнтські застосунки із сервером та значно спрощує розширення функціоналу системи. Специфікація API наведена у додатку Д
+Демонстрація виконаної роботи доступна за посиланням, наведеним у Додатку Е.
+ 
+ВИСНОВКИ
+
+У результаті виконання лабораторної роботи було створено діаграму прецедентів для опису програмної системи, розроблено базу даних та специфікацію API. Реалізовано взаємодію між сервером і базою даних, а також між сервером і клієнтом.
+ 
+ДОДАТОК А
+UML Діаграма прецедентів
+
+ 
+Рисунок А.1 – Діаграма прецедентів
+ 
+ДОДАТОК Б
+ER-діаграма (Нотація вороняча лапка)
+
+ 
+Рисунок Б.1 – ER діаграма
+ДОДАТОК В
+Діаграма структури бази даних
+
+ 
+Рисунок В.1 – Діаграма структури бази даних
+
+ДОДАТОК Г
+Фрагменти коду логіки взаємодії з базою даних та взаємодії серверної частини з клієнтом
+
+Приклад взаємодії з базою даних:
+
+   1: using Microsoft.EntityFrameworkCore;
+   2: using PetHouse.Persistence.Interfaces;
+   3: 
+   4: namespace PetHouse.Persistence.Repositories;
+   5: 
+   6: public class GenericRepository<T> : IRepository<T> where T : class
+   7: {
+   8:    private readonly PetHouseDbContext _context;
+   9:    private readonly DbSet<T> _dbSet;
+  10:
+  11:    public GenericRepository(PetHouseDbContext context)
+  12:    {
+  13:       _context = context;
+  14:       _dbSet = _context.Set<T>();
+  15:    }
+  16:
+  17:    public async Task<List<T>> GetAll()
+  18:    {
+  19:       return await _dbSet.ToListAsync();
+  20:    }
+  21:
+  22:    public async Task<Guid> Add(T entity)
+  23:    {
+  24:       if (entity == null)
+  25:       {
+  26:          throw new ArgumentNullException(nameof(entity));
+  27:       }
+  28:
+  29:       await _dbSet.AddAsync(entity);
+  30:       await _context.SaveChangesAsync();
+  31:
+  32:       var property = entity.GetType().GetProperty("Id") ?? entity.GetType().GetProperty("EntityId");
+  33:       if (property != null && property.PropertyType == typeof(Guid))
+  34:       {
+  35:          return (Guid)property.GetValue(entity);
+  36:       }
+  37:
+  38:       return Guid.Empty;
+  39:    }
+  40:
+  41:    public async Task<T?> FindById(Guid id)
+  42:    {
+  43:       return await _dbSet.FindAsync(id);
+  44:    }
+  45:
+  46:    public async Task Update(T entity)
+  47:    {
+  48:       if (entity == null)
+  49:       {
+  50:          throw new ArgumentNullException(nameof(entity));
+  51:       }
+  52:
+  53:       _dbSet.Update(entity);
+  54:       await _context.SaveChangesAsync();
+  55:    }
+  56:
+  57:    public async Task<Guid> DeleteAsync(Guid id)
+  58:    {
+  59:       var entity = await FindById(id);
+  60:       if (entity == null)
+  61:       {
+  62:          throw new KeyNotFoundException($"Entity with ID {id} not found.");
+  63:       }
+  64:
+  65:       _dbSet.Remove(entity);
+  66:       await _context.SaveChangesAsync();
+  67:       return id;
+  68:    }
+  69: }
+
+Приклад взаємодії з клієнтом:
+
+   1: using Microsoft.AspNetCore.Mvc;
+   2: using PetHouse.API.Contracts.User;
+   3: using PetHouse.API.Helpers;
+   4: using PetHouse.Application.Contracts.User;
+   5: using PetHouse.Application.Interfaces;
+   6: using Swashbuckle.AspNetCore.Annotations;
+   7:
+   8: namespace PetHouse.API.Controllers;
+   9:
+  10: [ApiController]
+  11: [Route("api/[controller]")]
+  12: public class AuthController : ControllerBase
+  13: {
+  14:    private readonly IAuthService _authService;
+  15:
+  16:    public AuthController(IAuthService authService)
+  17:    {
+  18:       _authService = authService;
+  19:    }
+  20:
+  21:    [HttpPost("register")]
+  22:    [SwaggerOperation("Registration user into system")]
+  23:    public async Task<IActionResult> Register(RegisterUserRequest request)
+  24:    {
+  25:       await _authService.Register(request.Name, request.Password, request.Email);
+  26:       return Ok(new { Message = "User successfully registered" });
+  27:    }
+  28:
+  29:    [HttpPost("login")]
+  30:    [SwaggerOperation("Authorize user into system")]
+  31:    [ProducesResponseType(200, Type = typeof(LoginUserResponse))]
+  32:    public async Task<IActionResult> Login(LoginUserRequest request)
+  33:    {
+  34:       var loginResult = await _authService.Login(request.Email, request.Password);
+  35:       HttpContext.Response.Cookies.Append("tasty-cookies", loginResult.RefreshToken, new CookieOptions()
+  36:       {
+  37:          HttpOnly = true,
+  38:          Expires = DateTime.Now.AddDays(30),
+  39:          SameSite = SameSiteMode.Strict
+  40:       });
+  41:
+  42:       return Ok(loginResult);
+  43:    }
+  44:
+  45:    [HttpPost("logout")]
+  46:    [SwaggerOperation("Unauthorize user from system")]
+  47:    public async Task<IActionResult> Logout()
+  48:    {
+  49:       HttpContext.Response.Cookies.Delete("tasty-cookies");
+  50:       return Ok(new { Message = "Successfully logout" });
+  51:    }
+  52:
+  53: }
+ 
+ДОДАТОК Д
+Специфікація API
+
+   1: {
+   2:   "openapi": "3.0.1",
+   3:   "info": {
+   4:     "title": "PetHouse.API",
+   5:     "version": "1.0"
+   6:   },
+   7:   "paths": {
+   8:     "/api/Auth/register": {
+   9:       "post": {
+  10:         "tags": [
+  11:           "Auth"
+  12:         ],
+  13:         "summary": "Registration user into system",
+  14:         "requestBody": {
+  15:           "content": {
+  16:             "application/json": {
+  17:               "schema": {
+  18:                 "$ref": "#/components/schemas/RegisterUserRequest"
+  19:               }
+  20:             },
+  21:             "text/json": {
+  22:               "schema": {
+  23:                 "$ref": "#/components/schemas/RegisterUserRequest"
+  24:               }
+  25:             },
+  26:             "application/*+json": {
+  27:               "schema": {
+  28:                 "$ref": "#/components/schemas/RegisterUserRequest"
+  29:               }
+  30:             }
+  31:           }
+  32:         },
+  33:         "responses": {
+  34:           "200": {
+  35:             "description": "OK"
+  36:           }
+  37:         }
+  38:       }
+  39:     },
+  40:     "/api/Auth/login": {
+  41:       "post": {
+  42:         "tags": [
+  43:           "Auth"
+  44:         ],
+  45:         "summary": "Authorize user into system",
+  46:         "requestBody": {
+  47:           "content": {
+  48:             "application/json": {
+  49:               "schema": {
+  50:                 "$ref": "#/components/schemas/LoginUserRequest"
+  51:               }
+  52:             },
+  53:             "text/json": {
+  54:               "schema": {
+  55:                 "$ref": "#/components/schemas/LoginUserRequest"
+  56:               }
+  57:             },
+  58:             "application/*+json": {
+  59:               "schema": {
+  60:                 "$ref": "#/components/schemas/LoginUserRequest"
+  61:               }
+  62:             }
+  63:           }
+  64:         },
+  65:         "responses": {
+  66:           "200": {
+  67:             "description": "OK",
+  68:             "content": {
+  69:               "text/plain": {
+  70:                 "schema": {
+  71:                   "$ref": "#/components/schemas/LoginUserResponse"
+  72:                 }
+  73:               },
+  74:               "application/json": {
+  75:                 "schema": {
+  76:                   "$ref": "#/components/schemas/LoginUserResponse"
+  77:                 }
+  78:               },
+  79:               "text/json": {
+  80:                 "schema": {
+  81:                   "$ref": "#/components/schemas/LoginUserResponse"
+  82:                 }
+  83:               }
+  84:             }
+  85:           }
+  86:         }
+  87:       }
+  88:     },
+  89:     "/api/Auth/logout": {
+  90:       "post": {
+  91:         "tags": [
+  92:           "Auth"
+  93:         ],
+  94:         "summary": "Unauthorize user from system",
+  95:         "responses": {
+  96:           "200": {
+  97:             "description": "OK"
+  98:           }
+  99:         }
+ 100:       }
+ 101:     },
+ 102:     "/api/Device": {
+ 103:       "get": {
+ 104:         "tags": [
+ 105:           "Device"
+ 106:         ],
+ 107:         "summary": "Get all devices",
+ 108:         "responses": {
+ 109:           "200": {
+ 110:             "description": "OK"
+ 111:           }
+ 112:         }
+ 113:       }
+ 114:     },
+ 115:     "/api/Device/{deviceId}": {
+ 116:       "get": {
+ 117:         "tags": [
+ 118:           "Device"
+ 119:         ],
+ 120:         "summary": "Get device by id",
+ 121:         "parameters": [
+ 122:           {
+ 123:             "name": "deviceId",
+ 124:             "in": "path",
+ 125:             "required": true,
+ 126:             "schema": {
+ 127:               "type": "string",
+ 128:               "format": "uuid"
+ 129:             }
+ 130:           }
+ 131:         ],
+ 132:         "responses": {
+ 133:           "200": {
+ 134:             "description": "OK"
+ 135:           }
+ 136:         }
+ 137:       },
+ 138:       "delete": {
+ 139:         "tags": [
+ 140:           "Device"
+ 141:         ],
+ 142:         "summary": "Delete pet by id",
+ 143:         "parameters": [
+ 144:           {
+ 145:             "name": "deviceId",
+ 146:             "in": "path",
+ 147:             "required": true,
+ 148:             "schema": {
+ 149:               "type": "string",
+ 150:               "format": "uuid"
+ 151:             }
+ 152:           }
+ 153:         ],
+ 154:         "responses": {
+ 155:           "200": {
+ 156:             "description": "OK"
+ 157:           }
+ 158:         }
+ 159:       },
+ 160:       "patch": {
+ 161:         "tags": [
+ 162:           "Device"
+ 163:         ],
+ 164:         "summary": "Update device model",
+ 165:         "parameters": [
+ 166:           {
+ 167:             "name": "deviceId",
+ 168:             "in": "path",
+ 169:             "required": true,
+ 170:             "schema": {
+ 171:               "type": "string"
+ 172:             }
+ 173:           }
+ 174:         ],
+ 175:         "requestBody": {
+ 176:           "content": {
+ 177:             "application/json": {
+ 178:               "schema": {
+ 179:                 "$ref": "#/components/schemas/UpdateDeviceRequest"
+ 180:               }
+ 181:             },
+ 182:             "text/json": {
+ 183:               "schema": {
+ 184:                 "$ref": "#/components/schemas/UpdateDeviceRequest"
+ 185:               }
+ 186:             },
+ 187:             "application/*+json": {
+ 188:               "schema": {
+ 189:                 "$ref": "#/components/schemas/UpdateDeviceRequest"
+ 190:               }
+ 191:             }
+ 192:           }
+ 193:         },
+ 194:         "responses": {
+ 195:           "200": {
+ 196:             "description": "OK"
+ 197:           }
+ 198:         }
+ 199:       }
+ 200:     },
+ 201:     "/api/Device/{userId}": {
+ 202:       "post": {
+ 203:         "tags": [
+ 204:           "Device"
+ 205:         ],
+ 206:         "summary": "Create device",
+ 207:         "parameters": [
+ 208:           {
+ 209:             "name": "userId",
+ 210:             "in": "path",
+ 211:             "required": true,
+ 212:             "schema": {
+ 213:               "type": "string",
+ 214:               "format": "uuid"
+ 215:             }
+ 216:           }
+ 217:         ],
+ 218:         "responses": {
+ 219:           "200": {
+ 220:             "description": "OK"
+ 221:           }
+ 222:         }
+ 223:       }
+ 224:     },
+ 225:     "/api/HealthAnalysis": {
+ 226:       "get": {
+ 227:         "tags": [
+ 228:           "HealthAnalysis"
+ 229:         ],
+ 230:         "responses": {
+ 231:           "200": {
+ 232:             "description": "OK"
+ 233:           }
+ 234:         }
+ 235:       }
+ 236:     },
+ 237:     "/api/HealthAnalysis/{healthAnalysisId}": {
+ 238:       "get": {
+ 239:         "tags": [
+ 240:           "HealthAnalysis"
+ 241:         ],
+ 242:         "summary": "Get health analysis by id",
+ 243:         "parameters": [
+ 244:           {
+ 245:             "name": "healthAnalysisId",
+ 246:             "in": "path",
+ 247:             "required": true,
+ 248:             "schema": {
+ 249:               "type": "string",
+ 250:               "format": "uuid"
+ 251:             }
+ 252:           }
+ 253:         ],
+ 254:         "responses": {
+ 255:           "200": {
+ 256:             "description": "OK"
+ 257:           }
+ 258:         }
+ 259:       },
+ 260:       "delete": {
+ 261:         "tags": [
+ 262:           "HealthAnalysis"
+ 263:         ],
+ 264:         "summary": "Delete health analyses by id",
+ 265:         "parameters": [
+ 266:           {
+ 267:             "name": "healthAnalysisId",
+ 268:             "in": "path",
+ 269:             "required": true,
+ 270:             "schema": {
+ 271:               "type": "string",
+ 272:               "format": "uuid"
+ 273:             }
+ 274:           }
+ 275:         ],
+ 276:         "responses": {
+ 277:           "200": {
+ 278:             "description": "OK"
+ 279:           }
+ 280:         }
+ 281:       },
+ 282:       "patch": {
+ 283:         "tags": [
+ 284:           "HealthAnalysis"
+ 285:         ],
+ 286:         "summary": "Update health analysis",
+ 287:         "parameters": [
+ 288:           {
+ 289:             "name": "healthAnalysisId",
+ 290:             "in": "path",
+ 291:             "required": true,
+ 292:             "schema": {
+ 293:               "type": "string",
+ 294:               "format": "uuid"
+ 295:             }
+ 296:           }
+ 297:         ],
+ 298:         "requestBody": {
+ 299:           "content": {
+ 300:             "application/json": {
+ 301:               "schema": {
+ 302:                 "$ref": "#/components/schemas/CreateHealthAnalysisRequest"
+ 303:               }
+ 304:             },
+ 305:             "text/json": {
+ 306:               "schema": {
+ 307:                 "$ref": "#/components/schemas/CreateHealthAnalysisRequest"
+ 308:               }
+ 309:             },
+ 310:             "application/*+json": {
+ 311:               "schema": {
+ 312:                 "$ref": "#/components/schemas/CreateHealthAnalysisRequest"
+ 313:               }
+ 314:             }
+ 315:           }
+ 316:         },
+ 317:         "responses": {
+ 318:           "200": {
+ 319:             "description": "OK"
+ 320:           }
+ 321:         }
+ 322:       }
+ 323:     },
+ 324:     "/api/HealthAnalysis/{petId}": {
+ 325:       "post": {
+ 326:         "tags": [
+ 327:           "HealthAnalysis"
+ 328:         ],
+ 329:         "summary": "Create health analysis",
+ 330:         "parameters": [
+ 331:           {
+ 332:             "name": "petId",
+ 333:             "in": "path",
+ 334:             "required": true,
+ 335:             "schema": {
+ 336:               "type": "string",
+ 337:               "format": "uuid"
+ 338:             }
+ 339:           }
+ 340:         ],
+ 341:         "requestBody": {
+ 342:           "content": {
+ 343:             "application/json": {
+ 344:               "schema": {
+ 345:                 "$ref": "#/components/schemas/CreateHealthAnalysisRequest"
+ 346:               }
+ 347:             },
+ 348:             "text/json": {
+ 349:               "schema": {
+ 350:                 "$ref": "#/components/schemas/CreateHealthAnalysisRequest"
+ 351:               }
+ 352:             },
+ 353:             "application/*+json": {
+ 354:               "schema": {
+ 355:                 "$ref": "#/components/schemas/CreateHealthAnalysisRequest"
+ 356:               }
+ 357:             }
+ 358:           }
+ 359:         },
+ 360:         "responses": {
+ 361:           "200": {
+ 362:             "description": "OK"
+ 363:           }
+ 364:         }
+ 365:       }
+ 366:     },
+ 367:     "/api/Meal": {
+ 368:       "get": {
+ 369:         "tags": [
+ 370:           "Meal"
+ 371:         ],
+ 372:         "summary": "Get all meals",
+ 373:         "responses": {
+ 374:           "200": {
+ 375:             "description": "OK"
+ 376:           }
+ 377:         }
+ 378:       }
+ 379:     },
+ 380:     "/api/Meal/{mealId}": {
+ 381:       "get": {
+ 382:         "tags": [
+ 383:           "Meal"
+ 384:         ],
+ 385:         "summary": "Get meal by id",
+ 386:         "parameters": [
+ 387:           {
+ 388:             "name": "mealId",
+ 389:             "in": "path",
+ 390:             "required": true,
+ 391:             "schema": {
+ 392:               "type": "string",
+ 393:               "format": "uuid"
+ 394:             }
+ 395:           }
+ 396:         ],
+ 397:         "responses": {
+ 398:           "200": {
+ 399:             "description": "OK"
+ 400:           }
+ 401:         }
+ 402:       },
+ 403:       "delete": {
+ 404:         "tags": [
+ 405:           "Meal"
+ 406:         ],
+ 407:         "summary": "Delete meal by id",
+ 408:         "parameters": [
+ 409:           {
+ 410:             "name": "mealId",
+ 411:             "in": "path",
+ 412:             "required": true,
+ 413:             "schema": {
+ 414:               "type": "string",
+ 415:               "format": "uuid"
+ 416:             }
+ 417:           }
+ 418:         ],
+ 419:         "responses": {
+ 420:           "200": {
+ 421:             "description": "OK"
+ 422:           }
+ 423:         }
+ 424:       },
+ 425:       "patch": {
+ 426:         "tags": [
+ 427:           "Meal"
+ 428:         ],
+ 429:         "summary": "Update meal",
+ 430:         "parameters": [
+ 431:           {
+ 432:             "name": "mealId",
+ 433:             "in": "path",
+ 434:             "required": true,
+ 435:             "schema": {
+ 436:               "type": "string",
+ 437:               "format": "uuid"
+ 438:             }
+ 439:           }
+ 440:         ],
+ 441:         "requestBody": {
+ 442:           "content": {
+ 443:             "application/json": {
+ 444:               "schema": {
+ 445:                 "$ref": "#/components/schemas/CreateMealRequest"
+ 446:               }
+ 447:             },
+ 448:             "text/json": {
+ 449:               "schema": {
+ 450:                 "$ref": "#/components/schemas/CreateMealRequest"
+ 451:               }
+ 452:             },
+ 453:             "application/*+json": {
+ 454:               "schema": {
+ 455:                 "$ref": "#/components/schemas/CreateMealRequest"
+ 456:               }
+ 457:             }
+ 458:           }
+ 459:         },
+ 460:         "responses": {
+ 461:           "200": {
+ 462:             "description": "OK"
+ 463:           }
+ 464:         }
+ 465:       }
+ 466:     },
+ 467:     "/api/Meal/{petId}": {
+ 468:       "post": {
+ 469:         "tags": [
+ 470:           "Meal"
+ 471:         ],
+ 472:         "summary": "Add meal",
+ 473:         "parameters": [
+ 474:           {
+ 475:             "name": "petId",
+ 476:             "in": "path",
+ 477:             "required": true,
+ 478:             "schema": {
+ 479:               "type": "string",
+ 480:               "format": "uuid"
+ 481:             }
+ 482:           }
+ 483:         ],
+ 484:         "requestBody": {
+ 485:           "content": {
+ 486:             "application/json": {
+ 487:               "schema": {
+ 488:                 "$ref": "#/components/schemas/CreateMealRequest"
+ 489:               }
+ 490:             },
+ 491:             "text/json": {
+ 492:               "schema": {
+ 493:                 "$ref": "#/components/schemas/CreateMealRequest"
+ 494:               }
+ 495:             },
+ 496:             "application/*+json": {
+ 497:               "schema": {
+ 498:                 "$ref": "#/components/schemas/CreateMealRequest"
+ 499:               }
+ 500:             }
+ 501:           }
+ 502:         },
+ 503:         "responses": {
+ 504:           "200": {
+ 505:             "description": "OK"
+ 506:           }
+ 507:         }
+ 508:       }
+ 509:     },
+ 510:     "/api/Pet": {
+ 511:       "get": {
+ 512:         "tags": [
+ 513:           "Pet"
+ 514:         ],
+ 515:         "summary": "Get all pets",
+ 516:         "responses": {
+ 517:           "200": {
+ 518:             "description": "OK"
+ 519:           }
+ 520:         }
+ 521:       }
+ 522:     },
+ 523:     "/api/Pet/{petId}": {
+ 524:       "get": {
+ 525:         "tags": [
+ 526:           "Pet"
+ 527:         ],
+ 528:         "summary": "Get pet by id",
+ 529:         "parameters": [
+ 530:           {
+ 531:             "name": "petId",
+ 532:             "in": "path",
+ 533:             "required": true,
+ 534:             "schema": {
+ 535:               "type": "string",
+ 536:               "format": "uuid"
+ 537:             }
+ 538:           }
+ 539:         ],
+ 540:         "responses": {
+ 541:           "200": {
+ 542:             "description": "OK"
+ 543:           }
+ 544:         }
+ 545:       },
+ 546:       "delete": {
+ 547:         "tags": [
+ 548:           "Pet"
+ 549:         ],
+ 550:         "summary": "Delete pet by id",
+ 551:         "parameters": [
+ 552:           {
+ 553:             "name": "petId",
+ 554:             "in": "path",
+ 555:             "required": true,
+ 556:             "schema": {
+ 557:               "type": "string",
+ 558:               "format": "uuid"
+ 559:             }
+ 560:           }
+ 561:         ],
+ 562:         "responses": {
+ 563:           "200": {
+ 564:             "description": "OK"
+ 565:           }
+ 566:         }
+ 567:       },
+ 568:       "patch": {
+ 569:         "tags": [
+ 570:           "Pet"
+ 571:         ],
+ 572:         "summary": "Update pet entity",
+ 573:         "parameters": [
+ 574:           {
+ 575:             "name": "petId",
+ 576:             "in": "path",
+ 577:             "required": true,
+ 578:             "schema": {
+ 579:               "type": "string",
+ 580:               "format": "uuid"
+ 581:             }
+ 582:           }
+ 583:         ],
+ 584:         "requestBody": {
+ 585:           "content": {
+ 586:             "application/json": {
+ 587:               "schema": {
+ 588:                 "$ref": "#/components/schemas/CreatePetRequest"
+ 589:               }
+ 590:             },
+ 591:             "text/json": {
+ 592:               "schema": {
+ 593:                 "$ref": "#/components/schemas/CreatePetRequest"
+ 594:               }
+ 595:             },
+ 596:             "application/*+json": {
+ 597:               "schema": {
+ 598:                 "$ref": "#/components/schemas/CreatePetRequest"
+ 599:               }
+ 600:             }
+ 601:           }
+ 602:         },
+ 603:         "responses": {
+ 604:           "200": {
+ 605:             "description": "OK"
+ 606:           }
+ 607:         }
+ 608:       }
+ 609:     },
+ 610:     "/api/Pet/{userId}": {
+ 611:       "post": {
+ 612:         "tags": [
+ 613:           "Pet"
+ 614:         ],
+ 615:         "summary": "Create pet",
+ 616:         "parameters": [
+ 617:           {
+ 618:             "name": "userId",
+ 619:             "in": "path",
+ 620:             "required": true,
+ 621:             "schema": {
+ 622:               "type": "string",
+ 623:               "format": "uuid"
+ 624:             }
+ 625:           }
+ 626:         ],
+ 627:         "requestBody": {
+ 628:           "content": {
+ 629:             "application/json": {
+ 630:               "schema": {
+ 631:                 "$ref": "#/components/schemas/CreatePetRequest"
+ 632:               }
+ 633:             },
+ 634:             "text/json": {
+ 635:               "schema": {
+ 636:                 "$ref": "#/components/schemas/CreatePetRequest"
+ 637:               }
+ 638:             },
+ 639:             "application/*+json": {
+ 640:               "schema": {
+ 641:                 "$ref": "#/components/schemas/CreatePetRequest"
+ 642:               }
+ 643:             }
+ 644:           }
+ 645:         },
+ 646:         "responses": {
+ 647:           "200": {
+ 648:             "description": "OK"
+ 649:           }
+ 650:         }
+ 651:       }
+ 652:     },
+ 653:     "/api/User/{userId}": {
+ 654:       "delete": {
+ 655:         "tags": [
+ 656:           "User"
+ 657:         ],
+ 658:         "summary": "Delete user by id",
+ 659:         "parameters": [
+ 660:           {
+ 661:             "name": "userId",
+ 662:             "in": "path",
+ 663:             "required": true,
+ 664:             "schema": {
+ 665:               "type": "string",
+ 666:               "format": "uuid"
+ 667:             }
+ 668:           }
+ 669:         ],
+ 670:         "responses": {
+ 671:           "200": {
+ 672:             "description": "OK",
+ 673:             "content": {
+ 674:               "text/plain": {
+ 675:                 "schema": {
+ 676:                   "type": "string",
+ 677:                   "format": "uuid"
+ 678:                 }
+ 679:               },
+ 680:               "application/json": {
+ 681:                 "schema": {
+ 682:                   "type": "string",
+ 683:                   "format": "uuid"
+ 684:                 }
+ 685:               },
+ 686:               "text/json": {
+ 687:                 "schema": {
+ 688:                   "type": "string",
+ 689:                   "format": "uuid"
+ 690:                 }
+ 691:               }
+ 692:             }
+ 693:           }
+ 694:         }
+ 695:       },
+ 696:       "get": {
+ 697:         "tags": [
+ 698:           "User"
+ 699:         ],
+ 700:         "summary": "Get user by id",
+ 701:         "parameters": [
+ 702:           {
+ 703:             "name": "userId",
+ 704:             "in": "path",
+ 705:             "required": true,
+ 706:             "schema": {
+ 707:               "type": "string",
+ 708:               "format": "uuid"
+ 709:             }
+ 710:           }
+ 711:         ],
+ 712:         "responses": {
+ 713:           "200": {
+ 714:             "description": "OK"
+ 715:           }
+ 716:         }
+ 717:       }
+ 718:     },
+ 719:     "/api/User": {
+ 720:       "put": {
+ 721:         "tags": [
+ 722:           "User"
+ 723:         ],
+ 724:         "summary": "Edit user",
+ 725:         "requestBody": {
+ 726:           "content": {
+ 727:             "application/json": {
+ 728:               "schema": {
+ 729:                 "$ref": "#/components/schemas/EditUserRequest"
+ 730:               }
+ 731:             },
+ 732:             "text/json": {
+ 733:               "schema": {
+ 734:                 "$ref": "#/components/schemas/EditUserRequest"
+ 735:               }
+ 736:             },
+ 737:             "application/*+json": {
+ 738:               "schema": {
+ 739:                 "$ref": "#/components/schemas/EditUserRequest"
+ 740:               }
+ 741:             }
+ 742:           }
+ 743:         },
+ 744:         "responses": {
+ 745:           "200": {
+ 746:             "description": "OK"
+ 747:           }
+ 748:         }
+ 749:       },
+ 750:       "get": {
+ 751:         "tags": [
+ 752:           "User"
+ 753:         ],
+ 754:         "summary": "Get all users",
+ 755:         "responses": {
+ 756:           "200": {
+ 757:             "description": "OK"
+ 758:           }
+ 759:         }
+ 760:       }
+ 761:     }
+ 762:   },
+ 763:   "components": {
+ 764:     "schemas": {
+ 765:       "ActivityLevel": {
+ 766:         "enum": [
+ 767:           1,
+ 768:           2,
+ 769:           3
+ 770:         ],
+ 771:         "type": "integer",
+ 772:         "format": "int32"
+ 773:       },
+ 774:       "CreateHealthAnalysisRequest": {
+ 775:         "type": "object",
+ 776:         "properties": {
+ 777:           "healthAnalysisType": {
+ 778:             "$ref": "#/components/schemas/HealthStatus"
+ 779:           },
+ 780:           "startAnalysisDate": {
+ 781:             "type": "string",
+ 782:             "format": "date"
+ 783:           },
+ 784:           "endAnalysisDate": {
+ 785:             "type": "string",
+ 786:             "format": "date"
+ 787:           },
+ 788:           "recomendations": {
+ 789:             "type": "string",
+ 790:             "nullable": true
+ 791:           }
+ 792:         },
+ 793:         "additionalProperties": false
+ 794:       },
+ 795:       "CreateMealRequest": {
+ 796:         "type": "object",
+ 797:         "properties": {
+ 798:           "portionSize": {
+ 799:             "type": "number",
+ 800:             "format": "double"
+ 801:           },
+ 802:           "startTime": {
+ 803:             "type": "string",
+ 804:             "format": "date-time"
+ 805:           },
+ 806:           "caloriesPerMeal": {
+ 807:             "type": "number",
+ 808:             "format": "double"
+ 809:           },
+ 810:           "mealStatus": {
+ 811:             "$ref": "#/components/schemas/MealStatus"
+ 812:           },
+ 813:           "caloriesConsumed": {
+ 814:             "type": "number",
+ 815:             "format": "double"
+ 816:           },
+ 817:           "adaptiveAdjustment": {
+ 818:             "type": "boolean"
+ 819:           },
+ 820:           "foodType": {
+ 821:             "type": "string",
+ 822:             "nullable": true
+ 823:           },
+ 824:           "isDaily": {
+ 825:             "type": "boolean"
+ 826:           }
+ 827:         },
+ 828:         "additionalProperties": false
+ 829:       },
+ 830:       "CreatePetRequest": {
+ 831:         "type": "object",
+ 832:         "properties": {
+ 833:           "petName": {
+ 834:             "type": "string",
+ 835:             "nullable": true
+ 836:           },
+ 837:           "petBreed": {
+ 838:             "type": "string",
+ 839:             "nullable": true
+ 840:           },
+ 841:           "petWeight": {
+ 842:             "type": "number",
+ 843:             "format": "double"
+ 844:           },
+ 845:           "caloriesPerDay": {
+ 846:             "type": "number",
+ 847:             "format": "double"
+ 848:           },
+ 849:           "activityLevel": {
+ 850:             "$ref": "#/components/schemas/ActivityLevel"
+ 851:           }
+ 852:         },
+ 853:         "additionalProperties": false
+ 854:       },
+ 855:       "DeviceStatus": {
+ 856:         "enum": [
+ 857:           1,
+ 858:           2,
+ 859:           3,
+ 860:           4,
+ 861:           5
+ 862:         ],
+ 863:         "type": "integer",
+ 864:         "format": "int32"
+ 865:       },
+ 866:       "EditUserRequest": {
+ 867:         "required": [
+ 868:           "email",
+ 869:           "name",
+ 870:           "userId"
+ 871:         ],
+ 872:         "type": "object",
+ 873:         "properties": {
+ 874:           "userId": {
+ 875:             "type": "string",
+ 876:             "format": "uuid"
+ 877:           },
+ 878:           "name": {
+ 879:             "minLength": 1,
+ 880:             "type": "string"
+ 881:           },
+ 882:           "email": {
+ 883:             "minLength": 1,
+ 884:             "type": "string",
+ 885:             "format": "email"
+ 886:           },
+ 887:           "userRole": {
+ 888:             "$ref": "#/components/schemas/Role"
+ 889:           }
+ 890:         },
+ 891:         "additionalProperties": false
+ 892:       },
+ 893:       "FeedingMode": {
+ 894:         "enum": [
+ 895:           1,
+ 896:           2,
+ 897:           3,
+ 898:           4,
+ 899:           5
+ 900:         ],
+ 901:         "type": "integer",
+ 902:         "format": "int32"
+ 903:       },
+ 904:       "HealthStatus": {
+ 905:         "enum": [
+ 906:           1,
+ 907:           2,
+ 908:           3,
+ 909:           4
+ 910:         ],
+ 911:         "type": "integer",
+ 912:         "format": "int32"
+ 913:       },
+ 914:       "LoginUserRequest": {
+ 915:         "type": "object",
+ 916:         "properties": {
+ 917:           "email": {
+ 918:             "type": "string",
+ 919:             "nullable": true
+ 920:           },
+ 921:           "password": {
+ 922:             "type": "string",
+ 923:             "nullable": true
+ 924:           }
+ 925:         },
+ 926:         "additionalProperties": false
+ 927:       },
+ 928:       "LoginUserResponse": {
+ 929:         "type": "object",
+ 930:         "properties": {
+ 931:           "accessToken": {
+ 932:             "type": "string",
+ 933:             "nullable": true
+ 934:           },
+ 935:           "refreshToken": {
+ 936:             "type": "string",
+ 937:             "nullable": true
+ 938:           }
+ 939:         },
+ 940:         "additionalProperties": false
+ 941:       },
+ 942:       "MealStatus": {
+ 943:         "enum": [
+ 944:           1,
+ 945:           2,
+ 946:           3,
+ 947:           4,
+ 948:           5
+ 949:         ],
+ 950:         "type": "integer",
+ 951:         "format": "int32"
+ 952:       },
+ 953:       "RegisterUserRequest": {
+ 954:         "type": "object",
+ 955:         "properties": {
+ 956:           "name": {
+ 957:             "type": "string",
+ 958:             "nullable": true
+ 959:           },
+ 960:           "password": {
+ 961:             "type": "string",
+ 962:             "nullable": true
+ 963:           },
+ 964:           "email": {
+ 965:             "type": "string",
+ 966:             "nullable": true
+ 967:           }
+ 968:         },
+ 969:         "additionalProperties": false
+ 970:       },
+ 971:       "Role": {
+ 972:         "enum": [
+ 973:           1,
+ 974:           2
+ 975:         ],
+ 976:         "type": "integer",
+ 977:         "format": "int32"
+ 978:       },
+ 979:       "UpdateDeviceRequest": {
+ 980:         "type": "object",
+ 981:         "properties": {
+ 982:           "deviceStatus": {
+ 983:             "$ref": "#/components/schemas/DeviceStatus"
+ 984:           },
+ 985:           "feedingMode": {
+ 986:             "$ref": "#/components/schemas/FeedingMode"
+ 987:           },
+ 988:           "recognitionEnabled": {
+ 989:             "type": "boolean"
+ 990:           },
+ 991:           "cameraEnabled": {
+ 992:             "type": "boolean"
+ 993:           }
+ 994:         },
+ 995:         "additionalProperties": false
+ 996:       }
+ 997:     }
+ 998:   }
+ 999: }
+ 
+ДОДАТОК Е
+Посилання на відео-звіт
+
+https://youtu.be/fO1QdVbreI0
