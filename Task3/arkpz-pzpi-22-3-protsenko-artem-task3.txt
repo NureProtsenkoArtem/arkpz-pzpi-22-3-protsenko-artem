@@ -1,0 +1,594 @@
+Харківський національний університет радіоелектроніки
+Факультет комп'ютерних наук
+Кафедра програмної інженерії
+
+
+
+
+ЗВІТ
+до лабораторної роботи №3 з дисципліни
+«Аналіз та рефакторинг коду»
+на тему: «РОЗРОБКА БІЗНЕС-ЛОГІКИ ТА ФУНКЦІЙ АДМІНІСТРУВАННЯ СЕРВЕРНОЇ ЧАСТИНИ ПРОГРАМНОЇ СИСТЕМИ»
+
+
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Проценко Артем Романович
+
+Перевірив
+ст. викладач кафедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+
+Харків 2024
+1 МЕТА
+
+Розробити бізнес-логіку та функції адміністрування серверної частини програмної системи.
+
+2 ХІД РОБОТИ
+
+У процесі розробки бізнес-логіки серверної частини програмної системи для автоматизації годування домашніх тварин було створено діаграми діяльності та взаємодії, які наведено у Додатку А. У ході реалізації бізнес-логіки було розроблено функціональність для відновлення та зміни користувальницького паролю, а також створено алгоритми для розрахунку необхідної кількості порції та калорій на основі параметрів тварини, зокрема її маси та коефіцієнта активності. Також було реалізовано аналіз стану здоров’я тварини на основі її харчових звичок. Для цього застосовувалися формули розрахунку стандартного відхилення калорійності раціону та коефіцієнта варіації, що дозволило надавати рекомендації щодо коригування раціону годування.
+Було реалізовано функціональність адміністрування бази даних, яка включає створення резервної копії бази даних та відновлення даних із резервної копії. Код реалізації функцій бізнес-логіки наведено у Додатку Б, а демонстрація виконаної роботи доступна за посиланням, що наведено у Додатку В.
+ 
+ВИСНОВКИ
+
+У результаті виконання лабораторної роботи були розроблені діаграми взаємодії та діяльності для серверної частини програмної системи. Також було впроваджено код, який реалізує бізнес-логіку та функції адміністрування серверної частини.
+ 
+ДОДАТОК А
+Діаграми діяльності та взаємодії для серверної частини
+
+ 
+Рисунок А.1 – Діаграма діяльності для функції аналізу здоров’я тварини на основі харчових звичок
+
+ 
+Рисунок А.2 – Діаграма діяльності для функцій адміністрування системи
+
+ 
+Рисунок А.3 – Діаграма діяльності для функції генерації нового паролю
+ 
+Рисунок А.4 – Діаграма діяльності для функції додавання годування
+
+ 
+Рисунок А.5 – Діаграма взаємодії для функції аналізу здоров’я тварини на основі харчових звичок
+
+ДОДАТОК Б
+Код функцій бізнес-логіки та адміністрування
+
+Код функцій аналізу здоров’я тварини
+
+   1: using PetHouse.Application.Contracts.HealthAnalysis;
+   2: using PetHouse.Application.Helpers;
+   3: using PetHouse.Application.Interfaces.Services;
+   4: using PetHouse.Core.Enums.HealthAnalysis;
+   5: using PetHouse.Core.Enums.Meal;
+   6: using PetHouse.Core.Models;
+   7: using PetHouse.Persistence.Interfaces;
+   8:
+   9: namespace PetHouse.Application.Services;
+  10: 
+  11: public class HealthAnalysisService : GenericService<HealthAnalysis>, IHealthAnalysisService
+  12: {
+  13:    private readonly IUnitOfWork _unitOfWork;
+  14:    private readonly IMealRepository _mealRepository;
+  15:    private readonly IMealService _mealService;
+  16:
+  17:
+  18:    public HealthAnalysisService(IUnitOfWork unitOfWork,
+  19:       IMealRepository mealRepository, IMealService mealService) : base(unitOfWork)
+  20:    {
+  21:       _unitOfWork = unitOfWork;
+  22:       _mealRepository = mealRepository;
+  23:       _mealService = mealService;
+  24:    }
+  25:
+  26:    public async Task<Guid> CreateHealthAnalysis(Guid petId, DateOnly startDate, DateOnly endDate)
+  27:    {
+  28:       var petRepository = _unitOfWork.Repository<Pet>();
+  29:
+  30:       var pet = await petRepository.FindById(petId);
+  31:
+  32:       if (pet == null)
+  33:       {
+  34:          throw new ApiException("User wasn't found", 404);
+  35:       }
+  36:
+  37:       var startDateTime = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+  38:       var endDateTime = DateTime.SpecifyKind(endDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
+  39:
+  40:       var meals = await _mealRepository
+  41:          .FindAll(m => m.PetId == petId &&
+  42:                        m.StartTime >= startDateTime &&
+  43:                        m.StartTime <= endDateTime &&
+  44:                        m.MealStatus == MealStatus.Completed);
+  45:
+  46:       if (!meals.Any())
+  47:       {
+  48:          throw new ApiException("No meals found for the specified period", 400);
+  49:       }
+  50:
+  51:       var analysisResult = AnalyzeHealth(pet, meals);
+  52:
+  53:       var healthAnalysis = new HealthAnalysis
+  54:       {
+  55:          HealthAnalysisId = Guid.NewGuid(),
+  56:          PetId = petId,
+  57:          AnalysisDate = DateTime.UtcNow,
+  58:          AnalysisStartDate = startDate,
+  59:          AnalysisEndDate = endDate,
+  60:          CaloriesConsumed = analysisResult.TotalCalories,
+  61:          HealthAnalysisType = analysisResult.HealthStatus,
+  62:          Recomendations = analysisResult.Recommendations
+  63:       };
+  64:
+  65:       await Repository.Add(healthAnalysis);
+  66:       await _unitOfWork.SaveChangesAsync();
+  67:
+  68:       return healthAnalysis.HealthAnalysisId;
+  69:    }
+  70:
+  71:
+  72:    public async Task<HealthAnalysis> UpdateHealthAnalysis(Guid healthAnalysisId,
+  73:       DateOnly startDate, DateOnly endDate, HealthStatus healthAnalysisType, string recommendations)
+  74:    {
+  75:       var healthAnalysis = await Repository.FindById(healthAnalysisId);
+  76:
+  77:       if (healthAnalysis == null)
+  78:          throw new ApiException("health analysis wasn't found", 404);
+  79:
+  80:       var startDateTime = DateTime.SpecifyKind(startDate.ToDateTime(TimeOnly.MinValue), DateTimeKind.Utc);
+  81:       var endDateTime = DateTime.SpecifyKind(endDate.ToDateTime(TimeOnly.MaxValue), DateTimeKind.Utc);
+  82:
+  83:
+  84:       var meals = await _mealRepository.FindAll(m => m.PetId == healthAnalysis.PetId &&
+  85:                                                      m.StartTime >= startDateTime &&
+  86:                                                      m.StartTime <= endDateTime);
+  87:
+  88:       var totalCalories = meals.Sum(m => m.CaloriesConsumed);
+  89:
+  90:       healthAnalysis.CaloriesConsumed = totalCalories;
+  91:       healthAnalysis.HealthAnalysisType = healthAnalysisType;
+  92:       healthAnalysis.Recomendations = recommendations;
+  93:
+  94:       await Repository.Update(healthAnalysis);
+  95:       await _unitOfWork.SaveChangesAsync();
+  96:
+  97:       return healthAnalysis;
+  98:    }
+  99:
+ 100:    private HealthAnalysisResult AnalyzeHealth(Pet pet, IEnumerable<Meal> meals)
+ 101:    {
+ 102:       var totalCalories = CalculateTotalCalories(meals);
+ 103:
+ 104:       var averageCalories = CalculateAverageCalories(meals);
+ 105:
+ 106:       var calorieStandardDeviation = CalculateCalorieStandardDeviation(meals, averageCalories);
+ 107:
+ 108:       var coefficientOfVariation = CalculateCoefficientOfVariation(calorieStandardDeviation, averageCalories);
+ 109:
+ 110:       var idealCalories = _mealService.CalculateCaloriesPerDay(pet);
+ 111:       
+ 112:       var (healthStatus, recommendations) = DetermineHealthStatus(averageCalories, idealCalories, coefficientOfVariation);
+ 113:
+ 114:       return new HealthAnalysisResult
+ 115:       {
+ 116:          TotalCalories = totalCalories,
+ 117:          HealthStatus = healthStatus,
+ 118:          Recommendations = recommendations
+ 119:       };
+ 120:    }
+ 121:
+ 122:    private double CalculateTotalCalories(IEnumerable<Meal> meals)
+ 123:    {
+ 124:       return meals.Sum(m => m.CaloriesConsumed);
+ 125:    }
+ 126:
+ 127:    private double CalculateAverageCalories(IEnumerable<Meal> meals)
+ 128:    {
+ 129:       return meals.Average(m => m.CaloriesConsumed);
+ 130:    }
+ 131:
+ 132:    private double CalculateCalorieStandardDeviation(IEnumerable<Meal> meals, double averageCalories)
+ 133:    {
+ 134:       return Math.Sqrt(meals.Average(m => Math.Pow(m.CaloriesConsumed - averageCalories, 2)));
+ 135:    }
+ 136:
+ 137:    private double CalculateCoefficientOfVariation(double calorieStandardDeviation, double averageCalories)
+ 138:    {
+ 139:       return (calorieStandardDeviation / averageCalories) * 100;
+ 140:    }
+ 141:
+ 142:    private (HealthStatus, string) DetermineHealthStatus(double averageCalories, double idealCalories,
+ 143:       double coefficientOfVariation)
+ 144:    {
+ 145:       if (coefficientOfVariation > 20)
+ 146:       {
+ 147:          return (HealthStatus.Inconsistient,
+ 148:             "The diet appears inconsistent. Regularize feeding times and portion sizes.");
+ 149:       }
+ 150:       else if (averageCalories < idealCalories * 0.8)
+ 151:       {
+ 152:          return (HealthStatus.UnderWeight, "Increase portion sizes or meal frequency to meet dietary needs.");
+ 153:       }
+ 154:       else if (averageCalories > idealCalories * 1.2)
+ 155:       {
+ 156:          return (HealthStatus.Overweight, "Reduce portion sizes or limit calorie-dense foods.");
+ 157:       }
+ 158:       else
+ 159:       {
+ 160:          return (HealthStatus.Healthy, "The pet's diet is consistent and meets nutritional requirements.");
+ 161:       }
+ 162:    }
+ 163: }
+
+Код функцій додавання графіку 
+
+   1: using PetHouse.Application.Helpers;
+   2: using PetHouse.Application.Interfaces.Services;
+   3: using PetHouse.Core.Enums.Meal;
+   4: using PetHouse.Core.Enums.Pet;
+   5: using PetHouse.Core.Models;
+   6: using PetHouse.Persistence.Interfaces;
+   7:
+   8: namespace PetHouse.Application.Services;
+   9:
+  10: public class MealService : GenericService<Meal>, IMealService
+  11: {
+  12:    private readonly IUnitOfWork _unitOfWork;
+  13:
+  14:    public MealService(IUnitOfWork unitOfWork) : base(unitOfWork)
+  15:    {
+  16:       _unitOfWork = unitOfWork;
+  17:    }
+  18:
+  19:    public async Task<Guid> AddMeal(Guid petId, double portionSize, DateTime startTime, bool adaptiveAdjustment,
+  20:       string foodType, bool isDaily, double calorificValue)
+  21:    {
+  22:       double caloriesPerMeal = 0.0;
+  23:
+  24:       var petRepository = _unitOfWork.Repository<Pet>();
+  25:
+  26:       var pet = await petRepository.FindById(petId);
+  27:
+  28:       if (pet == null)
+  29:          throw new ApiException("Pet wasn't found", 404);
+  30:
+  31:       if (adaptiveAdjustment)
+  32:       {
+  33:          caloriesPerMeal = CalculateCaloriesPerDay(pet);
+  34:          portionSize = Math.Round(caloriesPerMeal / calorificValue * 100);
+  35:       }
+  36:       else
+  37:       {
+  38:          caloriesPerMeal = CalculateCaloriesPerMeal(portionSize, calorificValue);
+  39:       }
+  40:
+  41:       var meal = new Meal
+  42:       {
+  43:          MealId = Guid.NewGuid(),
+  44:          PetId = petId,
+  45:          AdaptiveAdjustment = adaptiveAdjustment,
+  46:          CaloriesPerMeal = caloriesPerMeal,
+  47:          FoodType = foodType,
+  48:          IsDaily = isDaily,
+  49:          MealStatus = MealStatus.Scheduled,
+  50:          PortionSize = portionSize,
+  51:          CalorificValue = calorificValue,
+  52:          StartTime = startTime,
+  53:       };
+  54:
+  55:       await Repository.Add(meal);
+  56:       await _unitOfWork.SaveChangesAsync();
+  57:
+  58:       return meal.MealId;
+  59:    }
+  60:
+  61:    public double CalculateCaloriesPerMeal(double portionSize, double calorificValue, int divider = 100)
+  62:    {
+  63:       return (portionSize * calorificValue) / divider;
+  64:    }
+  65:
+  66:    public async Task<Meal> UpdateMeal(Guid mealId, double portionSize, DateTime startTime,
+  67:       double caloriesConsumed, MealStatus mealStatus, bool adaptiveAdjustment,
+  68:       string foodType, bool isDaily, double calorificValue)
+  69:    {
+  70:       double caloriesPerMeal = 0.0;
+  71:
+  72:       var meal = await Repository.FindById(mealId);
+  73:
+  74:       if (meal == null)
+  75:          throw new ApiException("Pet wasn't found", 404);
+  76:
+  77:       if (adaptiveAdjustment)
+  78:       {
+  79:          var petRepository = _unitOfWork.Repository<Pet>();
+  80:
+  81:          var pet = await petRepository.FindById(meal.PetId);
+  82:
+  83:          caloriesPerMeal = CalculateCaloriesPerDay(pet);
+  84:          portionSize = Math.Round(caloriesPerMeal / calorificValue * 100);
+  85:       }
+  86:       else
+  87:       {
+  88:          caloriesPerMeal = CalculateCaloriesPerMeal(portionSize, calorificValue);
+  89:       }
+  90: 
+  91:       meal.PortionSize = portionSize;
+  92:       meal.StartTime = startTime;
+  93:       meal.CaloriesPerMeal = caloriesPerMeal;
+  94:       meal.CaloriesConsumed = caloriesConsumed;
+  95:       meal.AdaptiveAdjustment = adaptiveAdjustment;
+  96:       meal.FoodType = foodType;
+  97:       meal.MealStatus = mealStatus;
+  98:       meal.CalorificValue = calorificValue;
+  99:       meal.IsDaily = isDaily;
+ 100:
+ 101:       await Repository.Update(meal);
+ 102:       await _unitOfWork.SaveChangesAsync();
+ 103:
+ 104:       return meal;
+ 105:    }
+ 106:
+ 107:    public double CalculateCaloriesPerDay(Pet pet)
+ 108:    {
+ 109:       if (pet.PetWeight <= 0)
+ 110:          throw new ApiException("Invalid pet weight", 400);
+ 111:
+ 112:       // Calculating RER coefficient
+ 113:       double rer = 70 * Math.Pow(pet.PetWeight, 0.75);
+ 114:
+ 115:       double activityFactor = pet.ActivityLevel switch
+ 116:       {
+ 117:          ActivityLevel.Low => 1.2,
+ 118:          ActivityLevel.Moderate => 1.5,
+ 119:          ActivityLevel.High => 1.8,
+ 120:          _ => 1.2
+ 121:       };
+ 122:
+ 123:       // Сalculation of calories per serving taking into
+ 124:       // account the activity coefficient
+ 125:       double caloriesPerMeal = rer * activityFactor;
+ 126:
+ 127:       return caloriesPerMeal;
+ 128:    }
+ 129:
+ 130:    public async Task<List<Meal>> GetByPetId(Guid petId)
+ 131:    {
+ 132:       var meals = await Repository.GetByPredicate(m => m.PetId == petId);
+ 133:
+ 134:       if (meals.Count <= 0)
+ 135:       {
+ 136:          return new List<Meal>();
+ 137:       }
+ 138:
+ 139:       return meals;
+ 140:    }
+ 141: }
+
+Код функцій для адміністрування бази даних
+
+   1: using System.Diagnostics;
+   2: using PetHouse.Application.Helpers;
+   3: using PetHouse.Application.Interfaces.Services;
+   4:
+   5: namespace PetHouse.Application.Services;
+   6:
+   7: public class AdminService : IAdminService
+   8: {
+   9:    private readonly string _connectionString;
+  10:
+  11:    public AdminService(string? connectionString)
+  12:    {
+  13:       _connectionString = connectionString ?? throw new ArgumentNullException(nameof(connectionString));
+  14:    }
+  15:
+  16:    public async Task<string> BackupData(string? outputDirectory)
+  17:    {
+  18:       try
+  19:       {
+  20:          outputDirectory ??= Path.GetTempPath();
+  21:          if (!Directory.Exists(outputDirectory))
+  22:          {
+  23:             Directory.CreateDirectory(outputDirectory);
+  24:          }
+  25:
+  26:          string backupFileName = $"backup_{DateTime.Now:yyyyMMddHHmmss}.sql";
+  27:          string backupFilePath = Path.Combine(outputDirectory, backupFileName);
+  28:
+  29:
+  30:          string pgDumpPath = "\"C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe\"";
+  31:
+  32:          var startInfo = new ProcessStartInfo
+  33:          {
+  34:             FileName = pgDumpPath,
+  35:             Arguments = GetPgDumpArguments(backupFilePath),
+  36:             RedirectStandardOutput = false,
+  37:             RedirectStandardError = true,
+  38:             UseShellExecute = false,
+  39:             CreateNoWindow = true
+  40:          };
+  41:
+  42:          using (var process = new Process { StartInfo = startInfo })
+  43:          {
+  44:             process.Start();
+  45:             string errorOutput = await process.StandardError.ReadToEndAsync();
+  46:             process.WaitForExit();
+  47:
+  48:             if (process.ExitCode != 0)
+  49:             {
+  50:                throw new ApiException($"Backup creation error: {errorOutput}", 500);
+  51:             }
+  52:          }
+  53:
+  54:          return backupFilePath;
+  55:       }
+  56:       catch (Exception ex)
+  57:       {
+  58:          throw new ApiException($"An error occurred while creating the backup: {ex.Message}", 500);
+  59:       }
+  60:    }
+  61:
+  62: public async Task RestoreDataAsync(string backupFilePath)
+  63: {
+  64:    try
+  65:    {
+  66:       if (!File.Exists(backupFilePath))
+  67:       {
+  68:          throw new FileNotFoundException("Backup file not found.");
+  69:       }
+  70:
+  71:       var parameters =
+  72:          _connectionString
+  73:             .Split(';')
+  74:             .Where(param => !string.IsNullOrEmpty(param))
+  75:             .Select(param => param.Split('='))
+  76:             .ToDictionary(param => param[0].Trim(), param => param[1].Trim());
+  77:
+  78:       string host = parameters["Host"];
+  79:       string port = parameters["Port"];
+  80:       string database = parameters["Database"];
+  81:       string user = parameters["Username"];
+  82:       string password = parameters["Password"];
+  83:
+  84:       Environment.SetEnvironmentVariable("PGPASSWORD", password);
+  85:
+  86:       string psqlPath = "\"C:\\Program Files\\PostgreSQL\\16\\bin\\psql.exe\""; ;
+  87:
+  88:       var createDbStartInfo = new ProcessStartInfo
+  89:       {
+  90:          FileName = psqlPath,
+  91:          Arguments = $"-h {host} -p {port} -U {user} -c \"CREATE DATABASE \"PetHouseDb\";\"",
+  92:          RedirectStandardOutput = true,
+  93:          RedirectStandardError = true,
+  94:          UseShellExecute = false,
+  95:          CreateNoWindow = true
+  96:       };
+  97:
+  98:       using (var process = new Process { StartInfo = createDbStartInfo })
+  99:       {
+ 100:          process.Start();
+ 101:          string errorOutput = await process.StandardError.ReadToEndAsync();
+ 102:          process.WaitForExit();
+ 103:
+ 104:          if (process.ExitCode != 0)
+ 105:          {
+ 106:             throw new ApiException($"Database creation failed: {errorOutput}", 500);
+ 107:          }
+ 108:       }
+ 109:
+ 110:       string pgRestorePath = "\"C:\\Program Files\\PostgreSQL\\16\\bin\\pg_restore.exe\"";
+ 111:
+ 112:       var restoreStartInfo = new ProcessStartInfo
+ 113:       {
+ 114:          FileName = pgRestorePath,
+ 115:          Arguments = $"-h {host} -p {port} -U {user} -d {database} -v \"{backupFilePath}\"",
+ 116:          RedirectStandardOutput = false,
+ 117:          RedirectStandardError = true,
+ 118:          UseShellExecute = false,
+ 119:          CreateNoWindow = true
+ 120:       };
+ 121:
+ 122:       using (var process = new Process { StartInfo = restoreStartInfo })
+ 123:       {
+ 124:          process.Start();
+ 125:          string errorOutput = await process.StandardError.ReadToEndAsync();
+ 126:          process.WaitForExit();
+ 127:
+ 128:          if (process.ExitCode != 0)
+ 129:          {
+ 130:             throw new ApiException($"Restore failed: {errorOutput}", 500);
+ 131:          }
+ 132:       }
+ 133:    }
+ 134:    catch (Exception ex)
+ 135:    {
+ 136:       throw new ApiException($"An error occurred during database restore: {ex.Message}", 500);
+ 137:    }
+ 138: }
+ 139:
+ 140:
+ 141:
+ 142:    private string GetPgDumpArguments(string outputPath)
+ 143:    {
+ 144:       var builder = new Npgsql.NpgsqlConnectionStringBuilder(_connectionString);
+ 145:
+ 146:       string? host = builder.Host;
+ 147:       string? database = builder.Database;
+ 148:       string? user = builder.Username;
+ 149:       string? password = builder.Password;
+ 150:       string? port = builder.Port.ToString();
+ 151:
+ 152:       Environment.SetEnvironmentVariable("PGPASSWORD", password);
+ 153:
+ 154:       return $"-h {host} -p {port} -U {user} -F c -b -v -f \"{outputPath}\" {database}";
+ 155:    }
+ 156: }
+
+Код функції для перевірки на Роль користувача
+
+   1: using System.IdentityModel.Tokens.Jwt;
+   2: using Microsoft.AspNetCore.Mvc;
+   3: using Microsoft.AspNetCore.Mvc.Filters;
+   4: using PetHouse.Application.Interfaces.Services;
+   5: using PetHouse.Core.Enums.User;
+   6:
+   7: namespace PetHouse.API.Helpers;
+   8:
+   9: public class RoleVerificationAttribute : Attribute, IAuthorizationFilter
+  10: {
+  11:    private readonly Role _requiredRole;
+  12:
+  13:    public RoleVerificationAttribute(Role requiredRole)
+  14:    {
+  15:       _requiredRole = requiredRole;
+  16:    }
+  17:
+  18:    public void OnAuthorization(AuthorizationFilterContext context)
+  19:    {
+  20:       var authorizationHeader = context.HttpContext.Request.Headers["Authorization"].ToString();
+  21:
+  22:       if (string.IsNullOrEmpty(authorizationHeader) || !authorizationHeader.StartsWith("Bearer "))
+  23:       {
+  24:          context.Result = new UnauthorizedResult();
+  25:          return;
+  26:       }
+  27:
+  28:       var token = authorizationHeader.Substring("Bearer ".Length).Trim();
+  29:
+  30:       try
+  31:       {
+  32:          var jwtHandler = new JwtSecurityTokenHandler();
+  33:
+  34:          if (!jwtHandler.CanReadToken(token))
+  35:          {
+  36:             context.Result = new UnauthorizedResult();
+  37:             return;
+  38:          }
+  39:
+  40:          var jwtToken = jwtHandler.ReadJwtToken(token);
+  41:
+  42:          var roleClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == "Role")?.Value;
+  43:
+  44:          if (roleClaim != _requiredRole.ToString())
+  45:          {
+  46:             context.Result = new ForbidResult();
+  47:             return;
+  48:          }
+  49:       }
+  50:       catch (Exception)
+  51:       {
+  52:          context.Result = new UnauthorizedResult();
+  53:          return;
+  54:       }
+  55:    }
+  56: }
+ 
+ДОДАТОК В
+Відео-посилання на YouTube
+
+https://youtu.be/NwSgJPfKiTQ
