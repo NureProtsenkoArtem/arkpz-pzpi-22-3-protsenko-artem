@@ -1,0 +1,494 @@
+Харківський національний університет радіоелектроніки
+Факультет комп'ютерних наук
+Кафедра програмної інженерії
+
+
+
+
+ЗВІТ
+до лабораторної роботи №4 з дисципліни
+«Аналіз та рефакторинг коду»
+на тему: «РОЗРОБКА IoT КЛІЄНТА»
+
+
+
+
+
+
+Виконав
+ст. гр. ПЗПІ-22-3
+Проценко Артем Романович
+
+Перевірив
+ст. викладач кафедри ПІ
+Сокорчук Ігор Петрович
+
+
+
+
+
+Харків 2024
+1 МЕТА
+
+Розробити програмне забезпечення для розумного пристрою, створеного на базі будь-якої поширеної на сьогодні платформи, придатної для реалізації вбудованих систем.
+
+2 ХІД РОБОТИ
+
+Під час виконання лабораторної роботи були створені діаграми прецедентів та діяльності для розумного пристрою. Діаграма прецедентів допомогла визначити ключові сценарії використання системи та описати взаємодію розумного  пристрою із його функціональністю . Діаграми діяльності деталізували порядок виконання операцій у системі, що дозволило наочно відобразити логіку взаємодії та потік даних у процесах налаштування і використання розумного пристрою.
+Діаграми прецедентів та діяльності наведено в додатку А.
+Також було розроблено програмне забезпечення для розумного пристрою, яке забезпечує його автономну роботу та інтеграцію із серверною системою. Було реалізовано функціональність підключення до бездротової мережі, що дозволяє пристрою отримувати доступ до інтернету для обміну даними. Виконано синхронізацію часу за допомогою протоколів NTP, що забезпечує точність розкладу годувань.
+Окрім цього, реалізовано механізми отримання даних про розклад годувань, перевірки відповідності поточного часу запланованому годуванню, а також активації функції годування, яка відповідає за видачу їжі у відповідних порціях. Було розроблено алгоритми аналізу часу попередніх годувань, які дозволяють створювати індивідуальні рекомендації для графіка годувань, використовуючи метод рухомого середнього.
+Код реалізацій даних функцій наведено в додатку Б.
+Посилання на відео з демонстрацією роботи наведено в додатку В.
+ВИСНОВКИ
+
+У ході виконання лабораторної роботи було успішно реалізовано комплексний підхід до розробки системи для розумного пристрою. Створені діаграми прецедентів і діяльності дозволили чітко окреслити сценарії використання та деталізувати порядок виконання операцій у системі, що стало основою для подальшої реалізації функціонального програмного забезпечення.
+Розроблене програмне забезпечення забезпечує автономну роботу пристрою, його інтеграцію з серверною системою та функціонування ключових компонентів, таких як підключення до мережі, синхронізація часу, отримання та аналіз даних про годування. Запровадження алгоритмів аналізу на основі методу рухомого середнього дозволило підвищити ефективність роботи системи, створюючи індивідуальні рекомендації для оптимального графіка годувань.
+ 
+ДОДАТОК А
+UML Діаграми прецедентів та діяльності
+
+ 
+Рисунок А.1 – Діаграма прецедентів
+
+ 
+Рисунок А.2 – Діаграма діяльності
+ 
+ДОДАТОК Б
+Фрагмент коду для налаштування бездротової мережі
+
+   1: #include "WiFiManager.h"
+   2:
+   3: const char *WIFI_SSID = "Wokwi-GUEST";
+   4: const char *WIFI_PASSWORD = "";
+   5:
+   6: WebServer server(80);
+   7:
+   8: // Function to connect to WiFi using predefined SSID and password
+   9: void WiFiManager::connectToWiFi()
+  10: {
+  11:   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  12:
+  13:   while (WiFi.status() != WL_CONNECTED)
+  14:   {
+  15:     delay(500);
+  16:     Serial.println("Connecting to WiFi...");
+  17:   }
+  18:   Serial.println("Connected to WiFi");
+  19: }
+  20:
+  21: // Function to handle the root URL and display a form for WiFi setup
+  22: void WiFiManager::handleRoot()
+  23: {
+  24:   String html = "<h1>WiFi Setup</h1>"
+  25:                 "<form action='/setWiFi' method='POST'>"
+  26:                 "<label>SSID: </label><input type='text' name='ssid'><br>"
+  27:                 "<label>Password: </label><input type='password' name='password'><br>"
+  28:                 "<input type='submit' value='Connect'>"
+  29:                 "</form>";
+  30:   server.send(200, "text/html", html);
+  31: }
+  32:
+  33: // Function to handle the WiFi setup form submission
+  34: void WiFiManager::handleSetWiFi()
+  35: {
+  36:   if (server.hasArg("ssid") && server.hasArg("password"))
+  37:   {
+  38:     String ssid = server.arg("ssid");
+  39:     String password = server.arg("password");
+  40:
+  41:     Serial.print("Received SSID: ");
+  42:     Serial.println(ssid);
+  43:     Serial.print("Received Password: ");
+  44:     Serial.println(password);
+  45:
+  46:     WIFI_SSID = ssid.c_str();
+  47:     WIFI_PASSWORD = password.c_str();
+  48:
+  49:     server.send(200, "text/plain", "WiFi credentials received. Rebooting...");
+  50:     delay(2000);
+  51:     ESP.restart();
+  52:   }
+  53:   else
+  54:   {
+  55:     server.send(400, "text/plain", "SSID and Password are required!");
+  56:   }
+  57: }
+
+
+Фрагмент коду для налаштування часу
+
+   1: #include "TimeManager.h"
+   2: #include <HTTPClient.h>
+   3: #include <ArduinoJson.h>
+   4: #include <WiFiUdp.h>
+   5: #include <NTPClient.h>
+   6:
+   7: WiFiUDP ntpUDP;
+   8: NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);
+   9:
+  10: const char *TimeManager::defaultNtpServer = "pool.ntp.org";
+  11: long TimeManager::defaultGmtOffsetSec = 0;
+  12: int TimeManager::defaultDaylightOffsetSec = 0;
+  13:
+  14: /**
+  15:  * Fetches the current time from the NTP server and returns it as an epoch time.
+  16:  * @return Current epoch time in seconds.
+  17:  */
+  18: time_t TimeManager::getCurrentTime()
+  19: {
+  20:   timeClient.update();  // Update the time from NTP
+  21:   return timeClient.getEpochTime();  // Return the epoch time
+  22: }
+  23:
+  24: /**
+  25:  * Gets the current time in a formatted ISO 8601 string (e.g., "2024-12-22T13:45:30Z").
+  26:  * @return A formatted time string.
+  27:  */
+  28: String TimeManager::getFormattedTime()
+  29: {
+  30:   time_t now = TimeManager::getCurrentTime();
+  31:   struct tm *timeInfo = localtime(&now);
+  32:
+  33:   // Adjust for timezone offset
+  34:   int timezoneOffset = 2 * 3600;
+  35:   time_t localTime = now + timezoneOffset;
+  36:   timeInfo = gmtime(&localTime);
+  37:
+  38:   char buffer[30];
+  39:   snprintf(buffer, sizeof(buffer), "%04d-%02d-%02dT%02d:%02d:%02dZ",
+  40:            timeInfo->tm_year + 1900, timeInfo->tm_mon + 1, timeInfo->tm_mday,
+  41:            timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
+  42:
+  43:   return String(buffer);
+  44: }
+  45:
+  46: /**
+  47:  * Sets up the time synchronization by connecting to the NTP server and printing the current time.
+  48:  * @param ntpServer The NTP server to use (optional, default "pool.ntp.org").
+  49:  * @param gmtOffsetSec GMT offset in seconds.
+  50:  * @param daylightOffsetSec Daylight saving time offset in seconds.
+  51:  */
+  52: void TimeManager::setupTime(const char *ntpServer, long gmtOffsetSec, int daylightOffsetSec)
+  53: {
+  54:   Serial.println("Connecting to NTP server...");
+  55:   String formattedTime = TimeManager::getFormattedTime();  // Fetch formatted time
+  56:   Serial.println(formattedTime);  // Print formatted time
+  57:   Serial.println("Time synchronized successfully.");  // Confirm synchronization
+  58: }
+  59:
+  60: /**
+  61:  * Checks if the current time matches the scheduled start time for a meal.
+  62:  * This method also checks if the meal is daily and if the meal status is valid (1).
+  63:  * @param startTime The scheduled start time of the meal (ISO 8601 format).
+  64:  * @param isDaily Whether the meal is a daily recurring meal.
+  65:  * @param mealStatus The status of the meal (1 = ready).
+  66:  * @return True if it's time to eat, false otherwise.
+  67:  */
+  68: bool TimeManager::isTimeToEat(const String &startTime, bool isDaily, int mealStatus)
+  69: {
+  70:   if (mealStatus != 1)
+  71:   {
+  72:     return false;
+  73:   }
+  74:
+  75:   int year, month, day, hour, minute, second;
+  76:   sscanf(startTime.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
+  77:
+  78:   Serial.printf("Time to eat: %04d-%02d-%02d %02d:%02d:%02d\n", year, month, day, hour, minute, second);
+  79:
+  80:   String currentFormattedTime = TimeManager::getFormattedTime();
+  81:
+  82:   int currentYear, currentMonth, currentDay, currentHour, currentMinute, currentSecond;
+  83:   sscanf(currentFormattedTime.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d",
+  84:          &currentYear, &currentMonth, &currentDay, &currentHour, &currentMinute, &currentSecond);
+  85:
+  86:   Serial.printf("Current Time: %04d-%02d-%02d %02d:%02d:%02d\n", currentYear, currentMonth, currentDay, currentHour, currentMinute, currentSecond);
+  87:
+  88:   if (currentYear != year || currentMonth != month || currentDay != day)
+  89:   {
+  90:     return false;
+  91:   }
+  92:
+  93:   return (currentHour == hour && currentMinute == minute);
+  94: }
+
+Фрагмент коду для управління годуванням
+
+   1: #include "MealManager.h"
+   2: #include "TimeManager.h"
+   3: #include "Feeder.h"
+   4: #include <HTTPClient.h>
+   5: #include <vector>
+   6:
+   7: const char *API_MEAL_PATH = "http://rnanj-91-244-62-30.a.free.pinggy.link/api/Meal/";
+   8:
+   9: /**
+  10:  * Fetches meal data for the specified user and checks meal schedules for feeding.
+  11:  * Activates feeding if the meal time is due and handles adaptive recommendations for the next meal time.
+  12:  */
+  13: void MealManager::fetchAndCheckMeals(const String &deviceId, const String &userId)
+  14: {
+  15:   const char *API_PATH = "user/";
+  16:   std::vector<std::string> pastMealTimes;
+  17:   HTTPClient http;
+  18:   String url = String(API_MEAL_PATH) + String(API_PATH) + userId;
+  19:   Serial.println("Fetch meal url" + url);
+  20:
+  21:   http.begin(url);
+  22:   http.addHeader("Content-Type", "application/json");
+  23:
+  24:   int statusCode = http.GET();
+  25:   if (statusCode > 0)
+  26:   {
+  27:     String response = http.getString();
+  28:     StaticJsonDocument<1024> doc;
+  29:     DeserializationError error = deserializeJson(doc, response);
+  30:
+  31:     if (!error)
+  32:     {
+  33:       JsonArray meals = doc.as<JsonArray>();
+  34:       for (JsonVariant meal : meals)
+  35:       {
+  36:         pastMealTimes.push_back(meal["startTime"].as<String>().c_str());
+  37:         int mealStatus = meal["mealStatus"].as<int>();
+  38:
+  39:         if (TimeManager::isTimeToEat(meal["startTime"], meal["isDaily"].as<bool>(), mealStatus))
+  40:         {
+  41:           Feeder::activateFeeder(deviceId, meal["portionSize"].as<int>());
+  42:           int portionConsumed = generateRandomMealResult(meal["portionSize"]);
+  43:           double consumedCalories = calculateConsumedCalories(portionConsumed, meal["calorificValue"]);
+  44:           UpdateMeal(meal["mealId"], 2, consumedCalories);
+  45:
+  46:           if (meal["isDaily"].as<bool>() == true)
+  47:           {
+  48:             MealManager::CreateMeal(meal);
+  49:             String recommendations = MealManager::predictNextMealTime(pastMealTimes, static_cast<int>(pastMealTimes.size()));
+  50:             Serial.println("Recommended time: " + recommendations);
+  51:           }
+  52:         }
+  53:       }
+  54:     }
+  55:   }
+  56:
+  57:   http.end();
+  58: }
+  59:
+  60: /**
+  61:  * Generates a random meal consumption result based on portion size.
+  62:  * Ensures randomness is initialized only once.
+  63:  */
+  64: int MealManager::generateRandomMealResult(int portionSize)
+  65: {
+  66:   static bool isSeedInitialized = false;
+  67:   if (!isSeedInitialized)
+  68:   {
+  69:     randomSeed(millis());
+  70:     isSeedInitialized = true;
+  71:   }
+  72:
+  73:   int result = random(0, portionSize + 1);
+  74:   return result;
+  75: }
+  76:
+  77: /**
+  78:  * Calculates consumed calories based on portion consumed and calorific value.
+  79:  */
+  80: double MealManager::calculateConsumedCalories(int portionConsumed, int calorificValue)
+  81: {
+  82:   return (portionConsumed * calorificValue) / 100.0;
+  83: }
+  84:
+  85: /**
+  86:  * Creates a new meal entry for daily recurring meals with adjusted start time.
+  87:  */
+  88: void MealManager::CreateMeal(JsonVariant meal)
+  89: {
+  90:   HTTPClient http;
+  91:
+  92:   String startTime = meal["startTime"].as<String>();
+  93:
+  94:   int year, month, day, hour, minute, second;
+  95:   sscanf(startTime.c_str(), "%4d-%2d-%2dT%2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
+  96:
+  97:   struct tm timeinfo = {0};
+  98:   timeinfo.tm_year = year - 1900;
+  99:   timeinfo.tm_mon = month - 1;
+ 100:   timeinfo.tm_mday = day;
+ 101:   timeinfo.tm_hour = hour + 2;
+ 102:   timeinfo.tm_min = minute;
+ 103:   timeinfo.tm_sec = second;
+ 104:
+ 105:   time_t rawTime = mktime(&timeinfo);
+ 106:   rawTime += 24 * 60 * 60; // Add 24 hours
+ 107:
+ 108:   struct tm *newTime = localtime(&rawTime);
+ 109:
+ 110:   char newStartTime[20];
+ 111:   strftime(newStartTime, sizeof(newStartTime), "%Y-%m-%dT%H:%M:%S", newTime);
+ 112:
+ 113:   const char *API_PATH = "";
+ 114:   String creationMeal = String(API_MEAL_PATH) + String(API_PATH) + String(meal["petId"].as<String>());
+ 115:   http.begin(creationMeal);
+ 116:   http.addHeader("Content-Type", "application/json");
+ 117:
+ 118:   StaticJsonDocument<200> jsonDoc;
+ 119:   jsonDoc["portionSize"] = meal["portionSize"].as<int>();
+ 120:   jsonDoc["startTime"] = newStartTime;
+ 121:   jsonDoc["foodType"] = meal["foodType"].as<String>();
+ 122:   jsonDoc["adaptiveAdjustment"] = meal["adaptiveAdjustment"].as<bool>();
+ 123:   jsonDoc["calorificValue"] = meal["calorificValue"].as<int>();
+ 124:   jsonDoc["isDaily"] = meal["isDaily"].as<bool>();
+ 125:
+ 126:   String requestBody;
+ 127:   serializeJson(jsonDoc, requestBody);
+ 128:   int statusCode = http.POST(requestBody);
+ 129:
+ 130:   if (statusCode > 0)
+ 131:   {
+ 132:     String response = http.getString();
+ 133:     Serial.println(response);
+ 134:   }
+ 135:
+ 136:   http.end();
+ 137: }
+ 138:
+ 139: /**
+ 140:  * Updates the status and consumed calories of a meal.
+ 141:  */
+ 142: void MealManager::UpdateMeal(const String &mealId, int mealStatus, double consumedCalories)
+ 143: {
+ 144:   const char *API_PATH = "change-status/";
+ 145:   HTTPClient http;
+ 146:
+ 147:   String mealUrl = String(API_MEAL_PATH) + String(API_PATH) + mealId;
+ 148:   http.begin(mealUrl);
+ 149:   http.addHeader("Content-Type", "application/json");
+ 150:
+ 151:   StaticJsonDocument<200> jsonDoc;
+ 152:   jsonDoc["mealStatus"] = mealStatus;
+ 153:   jsonDoc["caloriesConsumed"] = consumedCalories;
+ 154:
+ 155:   String requestBody;
+ 156:   serializeJson(jsonDoc, requestBody);
+ 157:   int statusCode = http.POST(requestBody);
+ 158:
+ 159:   if (statusCode > 0)
+ 160:   {
+ 161:     String response = http.getString();
+ 162:     Serial.println(response);
+ 163:   }
+ 164:
+ 165:   http.end();
+ 166: }
+ 167:
+ 168: /**
+ 169:  * Predicts the next meal time using a moving average of past intervals.
+ 170:  */
+ 171: String MealManager::predictNextMealTime(const std::vector<std::string> &pastMealTimes, int smoothingFactor)
+ 172: {
+ 173:   if (pastMealTimes.size() < 2)
+ 174:   {
+ 175:     Serial.println("Not enough data.");
+ 176:     return "";
+ 177:   }
+ 178:
+ 179:   std::vector<int> intervals;
+ 180:   for (size_t i = 1; i < pastMealTimes.size(); ++i)
+ 181:   {
+ 182:     int time1 = parseTimeToSeconds(pastMealTimes[i - 1].c_str());
+ 183:     int time2 = parseTimeToSeconds(pastMealTimes[i].c_str());
+ 184:     intervals.push_back(time2 - time1);
+ 185:   }
+ 186:
+ 187:   double weightedSum = 0;
+ 188:   double weightTotal = 0;
+ 189:   for (size_t i = 0; i < intervals.size(); ++i)
+ 190:   {
+ 191:     double weight = 1.0 / (i + 1);
+ 192:     weightedSum += intervals[i] * weight;
+ 193:     weightTotal += weight;
+ 194:   }
+ 195:   int predictedInterval = static_cast<int>(weightedSum / weightTotal);
+ 196:
+ 197:   int lastMealTime = parseTimeToSeconds(pastMealTimes.back().c_str());
+ 198:   int nextMealTime = lastMealTime + predictedInterval;
+ 199:
+ 200:   return convertSecondsToISO8601(nextMealTime);
+ 201: }
+ 202:
+ 203: /**
+ 204:  * Parses an ISO8601-formatted time string into seconds since the epoch.
+ 205:  */
+ 206: int MealManager::parseTimeToSeconds(const char *timeISO8601)
+ 207: {
+ 208:   int year, month, day, hour, minute, second;
+ 209:   sscanf(timeISO8601, "%4d-%2d-%2dT%2d:%2d:%2d", &year, &month, &day, &hour, &minute, &second);
+ 210:   struct tm timeinfo = {0};
+ 211:   timeinfo.tm_year = year - 1900;
+ 212:   timeinfo.tm_mon = month - 1;
+ 213:   timeinfo.tm_mday = day;
+ 214:   timeinfo.tm_hour = hour;
+ 215:   timeinfo.tm_min = minute;
+ 216:   timeinfo.tm_sec = second;
+ 217:
+ 218:   return mktime(&timeinfo);
+ 219: }
+ 220:
+ 221: /**
+ 222:  * Converts seconds since the epoch to an ISO8601-formatted time string.
+ 223:  */
+ 224: String MealManager::convertSecondsToISO8601(int secondsSinceEpoch)
+ 225: {
+ 226:   struct tm *timeinfo = localtime((time_t *)&secondsSinceEpoch);
+ 227:   char buffer[20];
+ 228:   strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%S", timeinfo);
+ 229:   return String(buffer);
+ 230: }
+
+Фрагмент коду для змінення стану розумного пристрою
+
+   1: #include "DeviceConfig.h"
+   2:
+   3: const char *getDeviceStatus(DeviceStatus param)
+   4: {
+   5:     switch (param)
+   6:     {
+   7:     case Offline:
+   8:         return "Offline";
+   9:     case Online:
+  10:         return "Online";
+  11:     case Idle:
+  12:         return "Idle";
+  13:     case Feeding:
+  14:         return "Feeding";
+  15:     case Error:
+  16:         return "Error";
+  17:     default:
+  18:         return "";
+  19:     }
+  20: }
+  21:
+  22: const char *getFeedingMode(FeedingMode param)
+  23: {
+  24:     switch (param)
+  25:     {
+  26:     case Manual:
+  27:         return "Manual";
+  28:     case Automatic:
+  29:         return "Automatic";
+  30:     case Adaptive:
+  31:         return "Adaptive";
+  32:     case Custom:
+  33:         return "Custom";
+  34:     case Pause:
+  35:         return "Pause";
+  36:     default:
+  37:         return "";
+  38:     }
+  39: }
+ 
+ДОДАТОК В
+Посилання на відеозвіт
+
+https://youtu.be/JJZznet9sik
