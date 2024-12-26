@@ -1,0 +1,9 @@
+version: '3'
+
+tasks:
+  run_project:
+    desc: "Run the C# UserService"
+    cmds:
+      - |
+        cd ../PetHouse.API
+        dotnet run
